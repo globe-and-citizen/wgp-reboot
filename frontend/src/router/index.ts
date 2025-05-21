@@ -22,6 +22,11 @@ const router = createRouter({
       name: 'pictures',
       component: () => import('@/components/GetPictures.vue'),
     },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: () => import('@/components/Profile.vue'),
+    }
   ],
 })
 
