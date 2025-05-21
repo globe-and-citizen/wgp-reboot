@@ -1,21 +1,35 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import {RouterLink, RouterView} from 'vue-router'
+import {computed} from "vue";
+
+const isLoggedIn = computed(() => {
+  return localStorage.getItem('jwt') !== null
+})
+
+function logout() {
+  localStorage.removeItem('jwt')
+  alert('Logged out successfully.')
+  location.href = '/'
+}
 </script>
 
 <template>
   <div style="position: relative; min-height: 4rem;">
     <nav>
-      <RouterLink to="/">Home</RouterLink>
-      <RouterLink to="/poems">Poems</RouterLink>
-      <RouterLink to="/pictures">Pictures</RouterLink>
-      <RouterLink to="/profile">Profile</RouterLink>
+      <RouterLink v-if="!isLoggedIn" to="/">Home</RouterLink>
+      <div v-if="isLoggedIn">
+        <RouterLink to="/poems">Poems</RouterLink>
+        <RouterLink to="/pictures">Pictures</RouterLink>
+        <RouterLink to="/profile">Profile</RouterLink>
+        <a href="/" @click.prevent="logout" style="padding:0 1rem;cursor:pointer;">Logout</a>
+      </div>
     </nav>
   </div>
 
   <div style="height: 4rem;"></div>
 
   <div class="body">
-    <RouterView />
+    <RouterView/>
   </div>
 
 </template>

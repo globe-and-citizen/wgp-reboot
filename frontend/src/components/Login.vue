@@ -22,10 +22,13 @@ const username = ref('');
 const password = ref('');
 
 const handleLogin = () => {
-  if (username.value && password.value) {
+  if (username.value == "tester" && password.value == "1234") {
+    localStorage.setItem('jwt', "fake-jwt-token");
     alert(`Logged in as: ${username.value}`);
+    // Redirect to the profile page or another page
+    location.href = '/profile';
   } else {
-    alert('Please fill in all fields.');
+    alert('Username or password is incorrect.');
   }
 };
 </script>
