@@ -26,7 +26,6 @@ impl<T> Router<T> {
     }
 
     pub fn contains(&self, method: &Method, path: &str) -> bool {
-        println!("Checking if {} exists for {}, {:?}, {}", path, method, self.posts.keys(), self.posts.contains_key(path));
         match *method {
             Method::POST => self.posts.contains_key(path),
             Method::GET => self.gets.contains_key(path),
@@ -48,11 +47,12 @@ impl<T> Router<T> {
 
     pub fn call_handler(&self, method: &Method, path: &str, data: &Vec<u8>) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(handler) = self.get_handler(method, path) {
-            println!("Handler found for {}: {:?}", method, handler);
             handler(&self.handler, data)
         } else {
-            println!("No handler found for {}: {}", method, path);
-            Ok(None)
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("Handler not found for {} {}", method, path),
+            )))
         }
     }
 

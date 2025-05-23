@@ -2,8 +2,8 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 
 pub(crate) trait RequestBody: Serialize + for<'de> Deserialize<'de> + Debug {
-    fn from_bytes(bytes: Vec<u8>) -> Box<Self> {
-        serde_json::from_slice(&bytes).unwrap()
+    fn from_bytes(bytes: Vec<u8>) -> Result<Box<Self>, serde_json::Error> {
+        serde_json::from_slice(&bytes)
     }
 }
 
@@ -14,15 +14,16 @@ pub(crate) trait ResponseBody: Serialize + for<'de> Deserialize<'de> + Debug {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CustomRequestBody {
-    pub data: String,
+pub struct LoginRequestBody {
+    pub username: String,
+    pub password: String, // todo change to hash
 }
 
-impl RequestBody for CustomRequestBody {}
+impl RequestBody for LoginRequestBody {}
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CustomResponseBody {
-    pub result: String,
+pub struct LoginResponseBody {
+    pub token: String,
 }
 
-impl ResponseBody for CustomResponseBody {}
+impl ResponseBody for LoginResponseBody {}

@@ -63,8 +63,6 @@ impl<T> ProxyHandler<T> {
             }
         };
 
-        println!("method: {}, path: {}", method, path);
-
         if self.router.contains(&method, &path) {
             StatusCode::OK
         } else {
