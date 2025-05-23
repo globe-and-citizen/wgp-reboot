@@ -1,6 +1,7 @@
 mod proxy;
 mod config;
 mod proxy_handler;
+mod entities;
 
 use std::env;
 use clap::Parser;

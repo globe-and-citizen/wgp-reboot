@@ -2,17 +2,8 @@ use std::panic::panic_any;
 use log::{debug, error};
 use pingora::http::{Method, ResponseHeader, StatusCode};
 use pingora::prelude::Session;
-use serde::{Deserialize, Serialize};
+use crate::entities::{CustomRequestBody, CustomResponseBody, ResponseBody};
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct RequestBody {
-    data: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ResponseBody {
-    result: String,
-}
 
 pub(crate) struct ProxyHandler {
     routes: Vec<String>,
@@ -68,7 +59,7 @@ impl ProxyHandler {
         }
     }
 
-    async fn get_request_body(session: &mut Session) -> Option<RequestBody> {
+    async fn get_request_body(session: &mut Session) -> pingora::Result<Vec<u8>> {
         // read request body
         let mut body = Vec::new();
         loop {
@@ -81,35 +72,27 @@ impl ProxyHandler {
                 }
                 Err(err) => {
                     error!("ERROR: {err}");
-                    break;
+                    return Err(err);
                 }
             }
         }
-
-        // convert to json
-        match serde_json::de::from_slice::<RequestBody>(&body) {
-            Ok(request_body) => {
-                debug!("Request body: {:?}", request_body);
-                Some(request_body)
-            }
-            Err(err) => {
-                error!("ERROR: {err}");
-                None
-            }
-        }
+        Ok(body)
     }
 
-    pub(crate) async fn handle_request(&self, session: &mut Session) -> pingora::Result<Option<ResponseBody>> {
+    pub(crate) async fn handle_request(&self, session: &mut Session) -> pingora::Result<Option<impl ResponseBody>> {
         // read request body
         match ProxyHandler::get_request_body(session).await {
-            Some(request_body) => {
-                debug!("Request body: {:?}", request_body);
+            Ok(request_body) => {
 
                 let (_, route) = ProxyHandler::extract_request_summary(session);
                 match route.as_str() {
                     "api_path" => {
                         // todo
-                        Ok(Some(ResponseBody {
+                        // convert to json
+                        let request_body: CustomRequestBody = serde_json::de::from_slice::<CustomRequestBody>(&request_body).unwrap();
+                        debug!("Request body: {:?}", request_body);
+
+                        Ok(Some(CustomResponseBody {
                             result: "ok".to_string(),
                         }))
                     }
@@ -118,8 +101,9 @@ impl ProxyHandler {
                     }
                 }
             }
-            None => {
-                Ok(None)
+            Err(err) => {
+                error!("ERROR: {err}");
+                Err(err)
             }
         }
     }

@@ -7,6 +7,8 @@ use pingora::{Result};
 use pingora::http::{StatusCode};
 use pingora::proxy::{ProxyHttp, Session};
 use crate::proxy_handler::{ProxyHandler};
+use crate::entities::ResponseBody;
+
 
 pub struct EchoProxy {
     addr: std::net::SocketAddr,
@@ -53,7 +55,7 @@ impl ProxyHttp for EchoProxy {
             // handle request
             match self.handler.handle_request(session).await? {
                 Some(res) => {
-                    response_body_bytes = serde_json::ser::to_vec(&res).unwrap();
+                    response_body_bytes = res.to_bytes();
                 }
                 None => {
                     response_status = StatusCode::BAD_REQUEST;
