@@ -6,7 +6,8 @@ use pingora::upstreams::peer::HttpPeer;
 use pingora::{Result};
 use pingora::http::{StatusCode};
 use pingora::proxy::{ProxyHttp, Session};
-use crate::proxy_handler::ProxyHandler;
+pub(crate) mod handler;
+use crate::proxy::handler::{ProxyHandler};
 
 pub struct EchoProxy<T> {
     addr: std::net::SocketAddr,
@@ -26,7 +27,7 @@ impl<T: Sync> EchoProxy<T> {
 }
 
 #[async_trait]
-impl<T: std::marker::Sync> ProxyHttp for EchoProxy<T> {
+impl<T: Sync> ProxyHttp for EchoProxy<T> {
     type CTX = ();
     fn new_ctx(&self) -> Self::CTX { () }
 

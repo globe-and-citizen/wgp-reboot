@@ -6,7 +6,7 @@ type HandleMessage<T> = fn(&T, &Vec<u8>) -> Result<Option<Vec<u8>>, Box<dyn std:
 
 pub struct Router<T> {
     handler: T,
-    pub groups: Vec<String>, // placeholder for later use
+    pub _groups: Vec<String>, // placeholder for later use
     pub posts: HashMap<String, HandleMessage<T>>,
     pub gets: HashMap<String, HandleMessage<T>>,
     pub puts: HashMap<String, HandleMessage<T>>,
@@ -17,7 +17,7 @@ impl<T> Router<T> {
     pub fn new(handler: T) -> Self {
         Router {
             handler,
-            groups: Vec::new(),
+            _groups: Vec::new(),
             posts: HashMap::new(),
             gets: HashMap::new(),
             puts: HashMap::new(),
@@ -54,10 +54,6 @@ impl<T> Router<T> {
             println!("No handler found for {}: {}", method, path);
             Ok(None)
         }
-    }
-
-    pub fn group(&mut self, group: String) {
-        self.groups.push(group);
     }
 
     pub fn post(&mut self, path: String, handler: HandleMessage<T>) {

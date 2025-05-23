@@ -1,6 +1,5 @@
-use std::fmt::Error;
 use log::debug;
-use crate::entities::{CustomRequestBody, CustomResponseBody, RequestBody, ResponseBody};
+use crate::message::entities::{CustomRequestBody, CustomResponseBody, RequestBody, ResponseBody};
 
 pub struct MessageHandler {
     // whatever can be added later as needed

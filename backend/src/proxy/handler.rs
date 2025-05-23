@@ -1,9 +1,6 @@
-use std::panic::panic_any;
 use log::{debug, error};
-use pingora::BError;
 use pingora::http::{Method, ResponseHeader, StatusCode};
 use pingora::prelude::Session;
-use crate::entities::{CustomRequestBody, CustomResponseBody, ResponseBody};
 use crate::router::Router;
 
 pub(crate) struct ProxyHandler<T> {
@@ -12,7 +9,6 @@ pub(crate) struct ProxyHandler<T> {
 
 impl<T> ProxyHandler<T> {
     pub(crate) fn new(router: Router<T>) -> Self {
-
         ProxyHandler { router }
     }
 

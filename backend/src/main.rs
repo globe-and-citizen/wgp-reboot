@@ -1,10 +1,7 @@
 mod proxy;
 mod config;
-
-pub mod proxy_handler;
-mod entities;
-mod message_handler;
 mod router;
+mod message;
 
 use std::env;
 use clap::Parser;
@@ -53,11 +50,11 @@ fn main() {
 
     log_init(&echo_config.log.path, &echo_config.log.to_level_filter());
 
-    let msg_handler = message_handler::MessageHandler::new();
+    let msg_handler = message::handler::MessageHandler::new();
     let mut router = router::Router::new(msg_handler);
-    router.post("/echo".to_string(), message_handler::MessageHandler::handle_example);
+    router.post("/echo".to_string(), message::handler::MessageHandler::handle_example);
 
-    let handler = proxy_handler::ProxyHandler::new(router);
+    let handler = proxy::handler::ProxyHandler::new(router);
 
     let opt = Opt::parse();
     let mut my_server = Server::new(Some(opt)).unwrap();
