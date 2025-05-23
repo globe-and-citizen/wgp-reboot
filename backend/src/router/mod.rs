@@ -6,11 +6,11 @@ type HandleMessage<T> = fn(&T, &Vec<u8>) -> Result<Option<Vec<u8>>, Box<dyn std:
 
 pub struct Router<T> {
     handler: T,
-    pub _groups: Vec<String>, // placeholder for later use
-    pub posts: HashMap<String, HandleMessage<T>>,
-    pub gets: HashMap<String, HandleMessage<T>>,
-    pub puts: HashMap<String, HandleMessage<T>>,
-    pub deletes: HashMap<String, HandleMessage<T>>,
+    _groups: Vec<String>, // placeholder for later use
+    posts: HashMap<String, HandleMessage<T>>,
+    gets: HashMap<String, HandleMessage<T>>,
+    puts: HashMap<String, HandleMessage<T>>,
+    deletes: HashMap<String, HandleMessage<T>>,
 }
 
 impl<T> Router<T> {

@@ -9,12 +9,12 @@ use pingora::proxy::{ProxyHttp, Session};
 pub(crate) mod handler;
 use crate::proxy::handler::{ProxyHandler};
 
-pub struct EchoProxy<T> {
+pub struct Proxy<T> {
     addr: std::net::SocketAddr,
     handler: ProxyHandler<T>,
 }
 
-impl<T: Sync> EchoProxy<T> {
+impl<T: Sync> Proxy<T> {
     pub(crate) fn new(upstream_host: String, upstream_port: u16, handler: ProxyHandler<T>) -> Self {
         let addr = (upstream_host, upstream_port)
             .to_socket_addrs()
@@ -22,12 +22,12 @@ impl<T: Sync> EchoProxy<T> {
             .next()
             .unwrap();
 
-        EchoProxy { addr, handler }
+        Proxy { addr, handler }
     }
 }
 
 #[async_trait]
-impl<T: Sync> ProxyHttp for EchoProxy<T> {
+impl<T: Sync> ProxyHttp for Proxy<T> {
     type CTX = ();
     fn new_ctx(&self) -> Self::CTX { () }
 

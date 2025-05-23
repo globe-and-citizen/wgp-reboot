@@ -12,12 +12,29 @@ impl<T> ProxyHandler<T> {
         ProxyHandler { router }
     }
 
-    fn extract_request_summary(session: &Session) -> (String, String) {
+    /// Extracts the request method and path from the session.
+    /// # Arguments
+    /// * `session` - A reference to the session object containing the request summary.
+    /// # Returns
+    /// * A tuple containing the HTTP method and the path as strings.
+    /// # Errors
+    /// * Returns an error if the method is unsupported or if the request summary is invalid (if it doesn't contain at least two parts (method and path)).
+    fn extract_request_summary(session: &Session) -> Result<(Method, String), String> {
         let request_summary = session.request_summary();
         let parts: Vec<&str> = request_summary.split_whitespace().collect();
 
         if parts.len() > 1 {
-            let method = parts[0].to_string();
+            let method = match parts[0].to_string().as_str() {
+                "POST" => Method::POST,
+                "GET" => Method::GET,
+                "PUT" => Method::PUT,
+                "DELETE" => Method::DELETE,
+                _ => {
+                    error!("Unsupported method: {}", parts[0].to_string());
+                    return Err("Unsupported method")?;
+                }
+            };
+
             let path = parts[1]
                 .trim_end_matches(',')
                 // .split('/')
@@ -25,24 +42,43 @@ impl<T> ProxyHandler<T> {
                 // .get(1) // todo
                 // .unwrap_or(&"")
                 .to_string();
-            (method, path)
+
+            Ok((method, path))
         } else {
-            error!("Invalid request summary: {}", request_summary);
-            (String::new(), String::new())
+            Err("Invalid request summary".to_string())
         }
     }
 
+    /// Validates the request by checking if the method and path are supported.
+    /// # Arguments
+    /// * `session` - A reference to the session object containing the request summary.
+    /// # Returns
+    /// * A StatusCode indicating the result of the validation.
     pub(crate) fn validate_request(&self, session: &Session) -> StatusCode {
-        let (method, path) = ProxyHandler::<T>::extract_request_summary(session);
+        let (method, path) = match ProxyHandler::<T>::extract_request_summary(session) {
+            Ok((method, path)) => (method, path),
+            Err(err) => {
+                error!("ERROR: {err}");
+                return StatusCode::METHOD_NOT_ALLOWED;
+            }
+        };
 
         println!("method: {}, path: {}", method, path);
-        if self.router.contains(&Method::POST, &path) {
+
+        if self.router.contains(&method, &path) {
             StatusCode::OK
         } else {
             StatusCode::NOT_FOUND
         }
     }
 
+    /// Reads the request body from the session.
+    /// # Arguments
+    /// * `session` - A mutable reference to the session object.
+    /// # Returns
+    /// * A Result containing the request body as a Vec<u8> or an error.
+    /// # Errors
+    /// * Returns an error if reading the request body fails.
     async fn get_request_body(session: &mut Session) -> pingora::Result<Vec<u8>> {
         // read request body
         let mut body = Vec::new();
@@ -63,14 +99,22 @@ impl<T> ProxyHandler<T> {
         Ok(body)
     }
 
+    /// Handles the request by extracting the method and path, and calling the appropriate handler.
+    /// # Arguments
+    /// * `session` - A mutable reference to the session object.
+    /// # Returns
+    /// * A Result containing the response body as a Vec<u8> or an error.
+    /// # Errors
+    /// * Returns an error if the request body cannot be read or if the handler fails.
     pub(crate) async fn handle_request(&self, session: &mut Session) -> pingora::Result<Vec<u8>> {
         // read request body
         match ProxyHandler::<T>::get_request_body(session).await {
             Ok(request_body) => {
 
-                let (_, path) = ProxyHandler::<T>::extract_request_summary(session);
+                // request_validation is called before this function, so we can assume that the request is valid
+                let (method, path) = ProxyHandler::<T>::extract_request_summary(session).unwrap();
 
-                let response = self.router.call_handler(&Method::POST, &path, &request_body);
+                let response = self.router.call_handler(&method, &path, &request_body);
 
                 match response {
                     Ok(Some(res)) => {
@@ -78,12 +122,12 @@ impl<T> ProxyHandler<T> {
                         Ok(res)
                     }
                     Ok(None) => {
-                        error!("No handler found for {}: {}", Method::POST, path);
+                        error!("No handler found for {}: {}", method, path); // todo check if this is ok
                         Ok(vec![])
                     }
                     Err(err) => {
                         error!("ERROR: {err}");
-                        Err(pingora::Error::because(pingora::ErrorType::InternalError, "Error in handler", err))
+                        Err(pingora::Error::because(pingora::ErrorType::InternalError, "Error in handler", err)) // todo check for request body error
                     }
                 }
             }

@@ -62,7 +62,7 @@ fn main() {
 
     let mut my_proxy = pingora::proxy::http_proxy_service(
         &my_server.configuration,
-        proxy::EchoProxy::new(echo_config.upstream.host, echo_config.upstream.port, handler),
+        proxy::Proxy::new(echo_config.upstream.host, echo_config.upstream.port, handler),
     );
 
     my_proxy.add_tcp(echo_config.server.address.as_str());
