@@ -6,17 +6,15 @@ use pingora::upstreams::peer::HttpPeer;
 use pingora::{Result};
 use pingora::http::{StatusCode};
 use pingora::proxy::{ProxyHttp, Session};
-use crate::proxy_handler::{ProxyHandler};
-use crate::entities::ResponseBody;
+use crate::proxy_handler::ProxyHandler;
 
-
-pub struct EchoProxy {
+pub struct EchoProxy<T> {
     addr: std::net::SocketAddr,
-    handler: ProxyHandler,
+    handler: ProxyHandler<T>,
 }
 
-impl EchoProxy {
-    pub(crate) fn new(upstream_host: String, upstream_port: u16, handler: ProxyHandler) -> Self {
+impl<T: Sync> EchoProxy<T> {
+    pub(crate) fn new(upstream_host: String, upstream_port: u16, handler: ProxyHandler<T>) -> Self {
         let addr = (upstream_host, upstream_port)
             .to_socket_addrs()
             .unwrap()
@@ -28,11 +26,9 @@ impl EchoProxy {
 }
 
 #[async_trait]
-impl ProxyHttp for EchoProxy {
+impl<T: std::marker::Sync> ProxyHttp for EchoProxy<T> {
     type CTX = ();
-    fn new_ctx(&self) -> Self::CTX {
-        ()
-    }
+    fn new_ctx(&self) -> Self::CTX { () }
 
     async fn upstream_peer(
         &self,
@@ -53,18 +49,19 @@ impl ProxyHttp for EchoProxy {
         let mut response_status = self.handler.validate_request(session);
         if response_status == StatusCode::OK {
             // handle request
-            match self.handler.handle_request(session).await? {
-                Some(res) => {
-                    response_body_bytes = res.to_bytes();
+            match self.handler.handle_request(session).await {
+                Ok(res) => {
+                    response_body_bytes = res
                 }
-                None => {
+                Err(err) => {
+                    // todo create error response
                     response_status = StatusCode::BAD_REQUEST;
                 }
             }
         }
 
         // convert json response to vec
-        ProxyHandler::set_headers(response_status, &response_body_bytes, session).await?;
+        ProxyHandler::<T>::set_headers(response_status, &response_body_bytes, session).await?;
         session.write_response_body(Some(Bytes::from(response_body_bytes)), true).await?;
 
         Ok(true)

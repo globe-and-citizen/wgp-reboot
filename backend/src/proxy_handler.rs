@@ -1,23 +1,19 @@
 use std::panic::panic_any;
 use log::{debug, error};
+use pingora::BError;
 use pingora::http::{Method, ResponseHeader, StatusCode};
 use pingora::prelude::Session;
 use crate::entities::{CustomRequestBody, CustomResponseBody, ResponseBody};
+use crate::router::Router;
 
-
-pub(crate) struct ProxyHandler {
-    routes: Vec<String>,
+pub(crate) struct ProxyHandler<T> {
+    router: Router<T>,
 }
 
-impl ProxyHandler {
-    pub(crate) fn new() -> Self {
+impl<T> ProxyHandler<T> {
+    pub(crate) fn new(router: Router<T>) -> Self {
 
-        // todo routes are hardcoded for now
-        let routes = vec![
-            "api_path".to_string(),
-        ];
-
-        ProxyHandler { routes }
+        ProxyHandler { router }
     }
 
     fn extract_request_summary(session: &Session) -> (String, String) {
@@ -27,11 +23,11 @@ impl ProxyHandler {
         if parts.len() > 1 {
             let method = parts[0].to_string();
             let path = parts[1]
-                .split('/')
-                .collect::<Vec<&str>>()
-                .get(1) // todo
-                .unwrap_or(&"")
                 .trim_end_matches(',')
+                // .split('/')
+                // .collect::<Vec<&str>>()
+                // .get(1) // todo
+                // .unwrap_or(&"")
                 .to_string();
             (method, path)
         } else {
@@ -41,21 +37,13 @@ impl ProxyHandler {
     }
 
     pub(crate) fn validate_request(&self, session: &Session) -> StatusCode {
-        let (method, path) = ProxyHandler::extract_request_summary(session);
+        let (method, path) = ProxyHandler::<T>::extract_request_summary(session);
 
-        // only POST method is allowed for now
-        if method == Method::POST.to_string() {
-            // check if path is allowed
-            if self.routes.contains(&path) {
-                StatusCode::OK
-            } else {
-                StatusCode::NOT_FOUND
-            }
-            // browser always sends an OPTIONS request along with POST for 'application/json' content-type
-        } else if method == Method::OPTIONS.to_string() {
-            StatusCode::NO_CONTENT
+        println!("method: {}, path: {}", method, path);
+        if self.router.contains(&Method::POST, &path) {
+            StatusCode::OK
         } else {
-            StatusCode::METHOD_NOT_ALLOWED
+            StatusCode::NOT_FOUND
         }
     }
 
@@ -79,25 +67,27 @@ impl ProxyHandler {
         Ok(body)
     }
 
-    pub(crate) async fn handle_request(&self, session: &mut Session) -> pingora::Result<Option<impl ResponseBody>> {
+    pub(crate) async fn handle_request(&self, session: &mut Session) -> pingora::Result<Vec<u8>> {
         // read request body
-        match ProxyHandler::get_request_body(session).await {
+        match ProxyHandler::<T>::get_request_body(session).await {
             Ok(request_body) => {
 
-                let (_, route) = ProxyHandler::extract_request_summary(session);
-                match route.as_str() {
-                    "api_path" => {
-                        // todo
-                        // convert to json
-                        let request_body: CustomRequestBody = serde_json::de::from_slice::<CustomRequestBody>(&request_body).unwrap();
-                        debug!("Request body: {:?}", request_body);
+                let (_, path) = ProxyHandler::<T>::extract_request_summary(session);
 
-                        Ok(Some(CustomResponseBody {
-                            result: "ok".to_string(),
-                        }))
+                let response = self.router.call_handler(&Method::POST, &path, &request_body);
+
+                match response {
+                    Ok(Some(res)) => {
+                        debug!("Response body: {:?}", res);
+                        Ok(res)
                     }
-                    _ => {
-                        panic_any("this line shouldn't be reached because of the validate_request method");
+                    Ok(None) => {
+                        error!("No handler found for {}: {}", Method::POST, path);
+                        Ok(vec![])
+                    }
+                    Err(err) => {
+                        error!("ERROR: {err}");
+                        Err(pingora::Error::because(pingora::ErrorType::InternalError, "Error in handler", err))
                     }
                 }
             }
