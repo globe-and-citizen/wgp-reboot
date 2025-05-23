@@ -140,3 +140,5 @@ dist
 **/.idea
 **/.DS_Store
 **/cargo.lock
+/backend/log.txt
+/backend/target/
