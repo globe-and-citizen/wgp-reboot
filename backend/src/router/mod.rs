@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use pingora::http::Method;
 
 // Box<dyn std::error::Error + Send + Sync> is used to represent any error type that implements the std::error::Error trait and can be sent across thread boundaries.
-type HandleMessage<T> = fn(&T, &Vec<u8>) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>>;
+type HandleMessage<T> = fn(&T, &Vec<u8>) -> Result<Option<Vec<u8>>, pingora::BError>;
 
 pub struct Router<T> {
     handler: T,
@@ -45,14 +45,14 @@ impl<T> Router<T> {
         }
     }
 
-    pub fn call_handler(&self, method: &Method, path: &str, data: &Vec<u8>) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
+    pub fn call_handler(&self, method: &Method, path: &str, data: &Vec<u8>) -> Result<Option<Vec<u8>>, pingora::BError> {
         if let Some(handler) = self.get_handler(method, path) {
             handler(&self.handler, data)
         } else {
-            Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
+            Err(pingora::Error::explain(
+                pingora::ErrorType::InternalError,
                 format!("Handler not found for {} {}", method, path),
-            )))
+            ))
         }
     }
 
