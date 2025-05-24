@@ -53,6 +53,7 @@ fn main() {
     let msg_handler = message::handler::MessageHandler::new();
     let mut router = router::Router::new(msg_handler);
     router.post("/login".to_string(), message::handler::MessageHandler::handle_login);
+    router.post("/register".to_string(), message::handler::MessageHandler::handle_register);
 
     let handler = proxy::handler::ProxyHandler::new(router);
 

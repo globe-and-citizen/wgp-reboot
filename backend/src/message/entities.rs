@@ -27,3 +27,18 @@ pub struct LoginResponseBody {
 }
 
 impl ResponseBody for LoginResponseBody {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RegisterRequestBody {
+    pub username: String,
+    pub password: String, // todo change to hash
+}
+
+impl RequestBody for RegisterRequestBody {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RegisterResponseBody {
+    pub success: bool,
+    pub message: String,
+}
+impl ResponseBody for RegisterResponseBody {}
