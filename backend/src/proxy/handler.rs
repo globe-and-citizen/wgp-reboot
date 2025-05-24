@@ -1,4 +1,4 @@
-use log::{debug, error};
+use log::error;
 use pingora::http::{Method, ResponseHeader, StatusCode};
 use pingora::prelude::Session;
 use crate::router::Router;
@@ -101,37 +101,19 @@ impl<T> ProxyHandler<T> {
     /// # Arguments
     /// * `session` - A mutable reference to the session object.
     /// # Returns
-    /// * A Result containing the response body as a Vec<u8> or an error.
-    /// # Errors
-    /// * Returns an error if the request body cannot be read or if the handler fails.
-    pub(crate) async fn handle_request(&self, session: &mut Session) -> pingora::Result<Vec<u8>> {
+    /// * A tuple containing an optional response body as Vec<u8> and a StatusCode.
+    pub(crate) async fn handle_request(&self, session: &mut Session) -> (Option<Vec<u8>>, StatusCode) {
         // read request body
         match ProxyHandler::<T>::get_request_body(session).await {
             Ok(request_body) => {
-
                 // request_validation is called before this function, so we can assume that the request is valid
                 let (method, path) = ProxyHandler::<T>::extract_request_summary(session).unwrap();
 
-                let response = self.router.call_handler(&method, &path, &request_body);
-
-                match response {
-                    Ok(Some(res)) => {
-                        debug!("Response body: {:?}", res);
-                        Ok(res)
-                    }
-                    Ok(None) => {
-                        error!("No handler found for {}: {}", method, path); // todo check if this is ok
-                        Ok(vec![])
-                    }
-                    Err(err) => {
-                        error!("ERROR: {err}");
-                        Err(pingora::Error::because(pingora::ErrorType::InternalError, "Error in handler", err)) // todo check for request body error
-                    }
-                }
+                self.router.call_handler(&method, &path, &request_body)
             }
             Err(err) => {
                 error!("ERROR: {err}");
-                Err(err)
+                (None, StatusCode::INTERNAL_SERVER_ERROR)
             }
         }
     }

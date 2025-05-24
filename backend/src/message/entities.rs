@@ -14,6 +14,13 @@ pub(crate) trait ResponseBody: Serialize + for<'de> Deserialize<'de> + Debug {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct ErrorResponseBody {
+    pub error: String,
+}
+
+impl ResponseBody for ErrorResponseBody {}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LoginRequestBody {
     pub username: String,
     pub password: String, // todo change to hash
