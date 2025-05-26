@@ -1,8 +1,9 @@
-use std::collections::HashMap;
-use pingora::http::Method;
+pub mod types;
+pub mod wgp;
 
-// Box<dyn std::error::Error + Send + Sync> is used to represent any error type that implements the std::error::Error trait and can be sent across thread boundaries.
-type HandleMessage<T> = fn(&T, &Vec<u8>) -> (Option<Vec<u8>>, pingora::http::StatusCode);
+use std::collections::HashMap;
+use pingora::http::{Method, StatusCode};
+use crate::router::types::{ContextTrait, HandleMessage, Response};
 
 pub struct Router<T> {
     handler: T,
@@ -45,20 +46,21 @@ impl<T> Router<T> {
         }
     }
 
-    pub fn call_handler(&self, method: &Method, path: &str, data: &Vec<u8>) -> (Option<Vec<u8>>, pingora::http::StatusCode) {
-        if let Some(handlers) = self.get_handlers(method, path) {
-            let mut response = None;
-            let mut status = pingora::http::StatusCode::OK;
+    pub fn call_handler(&self, ctx: &dyn ContextTrait) -> Response {
+        let method = ctx.method();
+        let path = ctx.path();
+        if let Some(handlers) = self.get_handlers(&method, path) {
+            let mut response = Response::new(StatusCode::OK, None);
             for handler in handlers.iter() {
-                (response, status) = handler(&self.handler, data);
-                if status != pingora::http::StatusCode::OK {
-                    return (response, status);
+                response = handler(&self.handler, ctx);
+                if response.status != StatusCode::OK {
+                    return response;
                 }
             }
 
-            (response, status)
+            response
         } else {
-            return (None, pingora::http::StatusCode::NOT_FOUND);
+            return Response::new(StatusCode::NOT_FOUND, None);
         }
     }
 
@@ -78,3 +80,5 @@ impl<T> Router<T> {
         self.deletes.insert(path, handlers);
     }
 }
+
+

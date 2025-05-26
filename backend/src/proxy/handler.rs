@@ -2,6 +2,8 @@ use log::error;
 use pingora::http::{Method, ResponseHeader, StatusCode};
 use pingora::prelude::Session;
 use crate::router::Router;
+use crate::router::types::{Response};
+use crate::router::wgp::{WGPContext};
 
 pub(crate) struct ProxyHandler<T> {
     router: Router<T>,
@@ -102,18 +104,20 @@ impl<T> ProxyHandler<T> {
     /// * `session` - A mutable reference to the session object.
     /// # Returns
     /// * A tuple containing an optional response body as Vec<u8> and a StatusCode.
-    pub(crate) async fn handle_request(&self, session: &mut Session) -> (Option<Vec<u8>>, StatusCode) {
+    pub(crate) async fn handle_request(&self, session: &mut Session) -> Response {
         // read request body
         match ProxyHandler::<T>::get_request_body(session).await {
             Ok(request_body) => {
                 // request_validation is called before this function, so we can assume that the request is valid
                 let (method, path) = ProxyHandler::<T>::extract_request_summary(session).unwrap();
 
-                self.router.call_handler(&method, &path, &request_body)
+                let context = WGPContext::new(method, path, request_body, session); // todo rethink logic of creating context because method, path and body can be extracted from session
+
+                self.router.call_handler(&context)
             }
             Err(err) => {
                 error!("ERROR: {err}");
-                (None, StatusCode::INTERNAL_SERVER_ERROR)
+                Response::new(StatusCode::INTERNAL_SERVER_ERROR, None)
             }
         }
     }

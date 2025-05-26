@@ -1,8 +1,10 @@
 use std::string::ToString;
 use std::sync::Mutex;
-use crate::message::entities::{ErrorResponseBody, LoginRequestBody, LoginResponseBody, RegisterRequestBody, RegisterResponseBody, RequestBody, ResponseBody};
+use crate::message::types::{ErrorResponseBody, LoginRequestBody, LoginResponseBody, RegisterRequestBody, RegisterResponseBody};
+use crate::message::{RequestBody, ResponseBody};
 use once_cell::sync::Lazy;
 use pingora::http::StatusCode;
+use crate::router::types::{ContextTrait, Response};
 
 static USERS: Lazy<Mutex<Vec<(String, String)>>> = Lazy::new(|| Mutex::new(Vec::from(&[
     ("tester".to_string(), "1234".to_string()),
@@ -28,11 +30,11 @@ impl MessageHandler {
         }
     }
 
-    pub fn handle_login(&self, data: &Vec<u8>) -> (Option<Vec<u8>>, StatusCode) {
-
+    pub fn handle_login(&self, ctx: &dyn ContextTrait) -> Response {
+        let data = ctx.request_body();
         let (body, error, status) = Self::parse_request_body::<LoginRequestBody>(data);
         if status != StatusCode::OK {
-            return (error.map(|e| e.to_bytes()), status);
+            return Response::new(status, error.map(|e| e.to_bytes()));
         }
 
         let request_body = body.unwrap(); // Unwrap the Option, safe because we checked status
@@ -41,20 +43,30 @@ impl MessageHandler {
 
         // Validate username and password
         if !users.contains(&(request_body.username, request_body.password)) {
-            return (Some(ErrorResponseBody {
-                error: "Invalid username or password".to_string(),
-            }.to_bytes()), StatusCode::UNAUTHORIZED)
+            return Response::new(
+                StatusCode::BAD_REQUEST,
+                Some(ErrorResponseBody {
+                    error: "Invalid username or password".to_string(),
+                }.to_bytes()),
+            );
         }
 
-        (Some((LoginResponseBody {
-            token: "jwt_token".to_string(), //todo create a real jwt token
-        }).to_bytes()), StatusCode::OK)
+        Response::new(
+            StatusCode::OK,
+            Some(LoginResponseBody {
+                token: "jwt_token".to_string(), // todo create a real jwt token
+            }.to_bytes()),
+        )
     }
 
-    pub fn handle_register(&self, data: &Vec<u8>) -> (Option<Vec<u8>>, StatusCode) {
+    pub fn handle_register(&self, ctx: &dyn ContextTrait) -> Response {
+        let data = ctx.request_body();
         let (body, error, status) = Self::parse_request_body::<RegisterRequestBody>(data);
         if status != StatusCode::OK {
-            return (error.map(|e| e.to_bytes()), status);
+            return Response::new(
+                status,
+                error.map(|e| e.to_bytes()),
+            );
         }
 
         let request_body = body.unwrap(); // Unwrap the Option, safe because we checked status
@@ -66,15 +78,21 @@ impl MessageHandler {
             let response_body = ErrorResponseBody {
                 error: "Username already exists".to_string(),
             };
-            return (Some(response_body.to_bytes()), StatusCode::BAD_REQUEST)
+            return Response::new(
+                StatusCode::BAD_REQUEST,
+                Some(response_body.to_bytes()),
+            );
         }
 
         // Save new user in memory
         users.push((request_body.username, request_body.password));
 
-        (Some((RegisterResponseBody {
-            success: true,
-            message: "User registered successfully".to_string(),
-        }).to_bytes()), StatusCode::OK)
+        Response::new(
+            StatusCode::OK,
+            Some(RegisterResponseBody {
+                success: true,
+                message: "User registered successfully".to_string(),
+            }.to_bytes()),
+        )
     }
 }

@@ -50,11 +50,11 @@ impl<T: Sync> ProxyHttp for Proxy<T> {
         let mut response_status = self.handler.validate_request(session);
         if response_status == StatusCode::OK {
             // handle request
-            let (response, status) = self.handler.handle_request(session).await;
-            if let Some(body) = response {
+            let wgp_response = self.handler.handle_request(session).await;
+            if let Some(body) = wgp_response.body {
                 response_body_bytes = body;
             }
-            response_status = status;
+            response_status = wgp_response.status;
         }
 
         // convert json response to vec
