@@ -2,8 +2,7 @@ use log::error;
 use pingora::http::{Method, ResponseHeader, StatusCode};
 use pingora::prelude::Session;
 use crate::router::Router;
-use crate::router::types::{Response};
-use crate::router::wgp::{WGPContext};
+use crate::router::types::{Response, Context};
 
 pub(crate) struct ProxyHandler<T> {
     router: Router<T>,
@@ -111,7 +110,7 @@ impl<T> ProxyHandler<T> {
                 // request_validation is called before this function, so we can assume that the request is valid
                 let (method, path) = ProxyHandler::<T>::extract_request_summary(session).unwrap();
 
-                let mut context = WGPContext::new(method, path, request_body, session); // todo rethink logic of creating context because method, path and body can be extracted from session
+                let mut context = Context::new(method, path, request_body, session); // todo rethink logic of creating context because method, path and body can be extracted from session
 
                 self.router.call_handler(&mut context)
             }

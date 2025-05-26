@@ -1,0 +1,36 @@
+use std::fmt::Debug;
+use serde::{Deserialize, Serialize};
+use crate::message::types::other::UserMetadata;
+
+pub trait ResponseBodyTrait: Serialize + for<'de> Deserialize<'de> + Debug {
+    fn to_bytes(&self) -> Vec<u8> {
+        serde_json::to_vec(self).unwrap()
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ErrorResponseBody {
+    pub error: String,
+}
+
+impl ResponseBodyTrait for ErrorResponseBody {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LoginResponseBody {
+    pub token: String,
+}
+impl ResponseBodyTrait for LoginResponseBody {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RegisterResponseBody {
+    pub success: bool,
+    pub message: String,
+}
+impl ResponseBodyTrait for RegisterResponseBody {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetProfileResponse {
+    pub metadata: UserMetadata,
+}
+impl ResponseBodyTrait for GetProfileResponse {}
+

@@ -1,27 +1,32 @@
 use std::string::ToString;
-use std::sync::Mutex;
-use crate::message::types::{ErrorResponseBody, GetProfileResponse, LoginRequestBody, LoginResponseBody, RegisterRequestBody, RegisterResponseBody, UserMetadata};
-use crate::message::{RequestBody, ResponseBody};
-use once_cell::sync::Lazy;
+use std::sync::{Arc, Mutex, MutexGuard};
+use log::error;
 use pingora::http::StatusCode;
+use crate::message::types::request::{RequestBodyTrait, LoginRequestBody, RegisterRequestBody};
+use crate::message::types::response::{ResponseBodyTrait, ErrorResponseBody, GetProfileResponse, LoginResponseBody, RegisterResponseBody};
+use crate::message::types::other::UserMetadata;
+use crate::message::db::WGPDatabase;
+use crate::message::utils::{create_jwt_token, get_username_from_token};
 use crate::router::types::{ContextTrait, Response};
 
-static USERS: Lazy<Mutex<Vec<(String, String)>>> = Lazy::new(|| Mutex::new(Vec::from(&[
-    ("tester".to_string(), "1234".to_string()),
-])));
-
-const TEMPORARY_JWT_TOKEN: &str = "temporary_jwt_token"; // Placeholder for a real JWT token
-
 pub struct WGPMessageHandler {
-    // whatever can be added later as needed
+    // use std::sync::Mutex to make db mutable without requiring WGPMessageHandler itself to be mutable,
+    // and use an Arc if we need shared ownership across threads.
+    db: Arc<Mutex<WGPDatabase>>,
 }
 
 impl WGPMessageHandler {
     pub fn new() -> Self {
-        WGPMessageHandler {}
+        WGPMessageHandler {
+            db: Arc::new(Mutex::new(WGPDatabase::new())),
+        }
     }
 
-    fn parse_request_body<T: RequestBody>(data: &Vec<u8>) -> (Option<Box<T>>, Option<ErrorResponseBody>, StatusCode) {
+    fn get_db(&self) -> MutexGuard<'_, WGPDatabase> {
+        self.db.lock().unwrap()
+    }
+
+    fn parse_request_body<T: RequestBodyTrait>(data: &Vec<u8>) -> (Option<Box<T>>, Option<ErrorResponseBody>, StatusCode) {
         match T::from_bytes(data.clone()) {
             Ok(body) => (Some(body), None, StatusCode::OK),
             Err(e) => {
@@ -41,22 +46,21 @@ impl WGPMessageHandler {
 
         let request_body = body.unwrap(); // Unwrap the Option, safe because we checked status
 
-        let users = USERS.lock().unwrap(); // Lock the USERS vector to ensure thread safety
-
-        // Validate username and password
-        if !users.contains(&(request_body.username, request_body.password)) {
-            return Response::new(
-                StatusCode::BAD_REQUEST,
-                Some(ErrorResponseBody {
-                    error: "Invalid username or password".to_string(),
-                }.to_bytes()),
-            );
+        if let Some(password) = self.get_db().get_password(&request_body.username) {
+            if *password == request_body.password {
+                return Response::new(
+                    StatusCode::OK,
+                    Some(LoginResponseBody {
+                        token: create_jwt_token(request_body.username),
+                    }.to_bytes()),
+                );
+            }
         }
 
         Response::new(
-            StatusCode::OK,
-            Some(LoginResponseBody {
-                token: TEMPORARY_JWT_TOKEN.to_string(), // todo create a real jwt token
+            StatusCode::BAD_REQUEST,
+            Some(ErrorResponseBody {
+                error: "Invalid username or password".to_string(),
             }.to_bytes()),
         )
     }
@@ -73,21 +77,25 @@ impl WGPMessageHandler {
 
         let request_body = body.unwrap(); // Unwrap the Option, safe because we checked status
 
-        let mut users = USERS.lock().unwrap(); // Lock the USERS vector to ensure thread safety
-
-        // Check if the username already exists
-        if users.iter().any(|(user, _)| user == &request_body.username) {
-            let response_body = ErrorResponseBody {
-                error: "Username already exists".to_string(),
-            };
+        let mut db = self.get_db();
+        if db.user_exists(&request_body.username) {
             return Response::new(
                 StatusCode::BAD_REQUEST,
-                Some(response_body.to_bytes()),
+                Some(ErrorResponseBody {
+                    error: "Username already exists".to_string(),
+                }.to_bytes()),
             );
         }
 
-        // Save new user in memory
-        users.push((request_body.username, request_body.password));
+        db.add_user(request_body.username.clone(), request_body.password.clone(), UserMetadata {
+            username: request_body.username.clone(),
+            title: "".to_string(),
+            avatar: "".to_string(),
+            bio: "".to_string(),
+            email: "".to_string(),
+            location: "".to_string(),
+            website: "".to_string(),
+        });
 
         Response::new(
             StatusCode::OK,
@@ -100,7 +108,8 @@ impl WGPMessageHandler {
 
     pub fn authentication_middleware(&self, ctx: &mut dyn ContextTrait) -> Response {
         let token = ctx.request_header().headers.get("Authorization").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
-        if token.is_none() || token.unwrap() != TEMPORARY_JWT_TOKEN {
+
+        if token.is_none() { // todo update authorization logic
             return Response::new(
                 StatusCode::UNAUTHORIZED,
                 Some(ErrorResponseBody {
@@ -108,22 +117,52 @@ impl WGPMessageHandler {
                 }.to_bytes()),
             );
         }
+        let token = token.unwrap();
+
+        // get login credentials from the authorization token
+        let username = get_username_from_token(&token);
+        if username.is_none() {
+            return Response::new(
+                StatusCode::UNAUTHORIZED,
+                Some(ErrorResponseBody {
+                    error: "Invalid token".to_string(),
+                }.to_bytes()),
+            );
+        }
+
+        let db = self.get_db();
+        if !db.user_exists(&username.unwrap()) {
+            return Response::new(
+                StatusCode::UNAUTHORIZED,
+                Some(ErrorResponseBody {
+                    error: "User does not exist".to_string(),
+                }.to_bytes()),
+            );
+        }
+
+        // set credentials in the context for further use
+        ctx.set("username".to_string(), username.unwrap().to_string()); // temporary hardcoded username
+
+        // If the token is valid, continue processing the request
         Response::new(StatusCode::OK, None)
     }
 
     pub fn get_profile(&self, ctx: &mut dyn ContextTrait) -> Response {
-        let response_body = GetProfileResponse { // todo fetch from database
-            metadata: UserMetadata {
-                username: "ChatGPT".to_string(),
-                title: "AI Assistant by OpenAI".to_string(),
-                avatar: "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg".to_string(),
-                bio: "ChatGPT is a language model designed to assist with writing, coding, learning, and more. \
-            Trained on a wide range of data, it aims to provide accurate, clear, and human-like responses to support users in diverse tasks.".to_string(),
-                email: "Not applicable 😊".to_string(),
-                location: "The Cloud ☁️".to_string(),
-                website: "https://openai.com/chatgpt".to_string(),
-            }
-        };
-        Response::new(StatusCode::OK, Some(response_body.to_bytes()))
+        if let Some(username) = ctx.get("username") {
+            let db = self.get_db();
+            let metadata = db.get_metadata(username);
+
+            let response_body = GetProfileResponse {
+                metadata: metadata.unwrap().clone()
+            };
+
+            Response::new(StatusCode::OK, Some(response_body.to_bytes()))
+        } else {
+            error!("ERROR: Username not found in context");
+            Response::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                None,
+            )
+        }
     }
 }

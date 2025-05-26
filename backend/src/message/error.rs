@@ -8,19 +8,6 @@ pub enum MessageHandlerError {
     InvalidData(&'static str),
 }
 
-impl MessageHandlerError {
-    pub fn to_pingora_error(&self) -> pingora::BError {
-        match self {
-            MessageHandlerError::InternalError(err) =>
-                pingora::Error::because(pingora::ErrorType::InternalError, "Error from MessageHandler", format!("{:?}", err)),
-            MessageHandlerError::ParseBodyError(err) =>
-                pingora::Error::because(pingora::ErrorType::BindError, "Error from MessageHandler", format!("{:?}", err)),
-            MessageHandlerError::InvalidData(msg) =>
-                pingora::Error::explain(pingora::ErrorType::Custom(msg), "Error from MessageHandler"),
-        }
-    }
-}
-
 impl fmt::Display for MessageHandlerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

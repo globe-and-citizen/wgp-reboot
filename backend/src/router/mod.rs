@@ -1,5 +1,4 @@
 pub mod types;
-pub mod wgp;
 
 use std::collections::HashMap;
 use pingora::http::{Method, StatusCode};
