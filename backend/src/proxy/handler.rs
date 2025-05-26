@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use log::error;
 use pingora::http::{Method, ResponseHeader, StatusCode};
 use pingora::prelude::Session;
+use regex::Regex;
 use crate::router::Router;
-use crate::router::types::{Response, Context};
+use crate::router::types::{Response, Context, RequestSummary};
 
 pub(crate) struct ProxyHandler<T> {
     router: Router<T>,
@@ -20,7 +22,7 @@ impl<T> ProxyHandler<T> {
     /// * A tuple containing the HTTP method and the path as strings.
     /// # Errors
     /// * Returns an error if the method is unsupported or if the request summary is invalid (if it doesn't contain at least two parts (method and path)).
-    fn extract_request_summary(session: &Session) -> Result<(Method, String), String> {
+    fn extract_request_summary(session: &Session) -> Result<RequestSummary, String> {
         let request_summary = session.request_summary();
         let parts: Vec<&str> = request_summary.split_whitespace().collect();
 
@@ -44,7 +46,22 @@ impl<T> ProxyHandler<T> {
                 // .unwrap_or(&"")
                 .to_string();
 
-            Ok((method, path))
+            let base_path = path.split('?').next().unwrap_or(&path).to_string();
+
+            let re = Regex::new(r"\?([^#]*)").unwrap();
+            let mut queries = HashMap::new();
+
+            if let Some(caps) = re.captures(path.as_str()) {
+                let query = &caps[1];
+                for pair in query.split('&') {
+                    let mut iter = pair.splitn(2, '=');
+                    let key = iter.next().unwrap_or("");
+                    let value = iter.next().unwrap_or("");
+                    queries.insert(key.to_string(), value.to_string());
+                }
+            }
+
+            Ok(RequestSummary{ method, path: base_path, params: queries })
         } else {
             Err("Invalid request summary".to_string())
         }
@@ -56,15 +73,15 @@ impl<T> ProxyHandler<T> {
     /// # Returns
     /// * A StatusCode indicating the result of the validation.
     pub(crate) fn validate_request(&self, session: &Session) -> StatusCode {
-        let (method, path) = match ProxyHandler::<T>::extract_request_summary(session) {
-            Ok((method, path)) => (method, path),
+        let request_summary = match ProxyHandler::<T>::extract_request_summary(session) {
+            Ok(request_summary) => request_summary,
             Err(err) => {
                 error!("ERROR: {err}");
                 return StatusCode::METHOD_NOT_ALLOWED;
             }
         };
 
-        if self.router.contains(&method, &path) {
+        if self.router.contains(&request_summary.method, &request_summary.path) {
             StatusCode::OK
         } else {
             StatusCode::NOT_FOUND
@@ -108,9 +125,8 @@ impl<T> ProxyHandler<T> {
         match ProxyHandler::<T>::get_request_body(session).await {
             Ok(request_body) => {
                 // request_validation is called before this function, so we can assume that the request is valid
-                let (method, path) = ProxyHandler::<T>::extract_request_summary(session).unwrap();
-
-                let mut context = Context::new(method, path, request_body, session); // todo rethink logic of creating context because method, path and body can be extracted from session
+                let req_summary = ProxyHandler::<T>::extract_request_summary(session).unwrap();
+                let mut context = Context::new(req_summary, request_body, session); // todo rethink logic of creating context because method, path and body can be extracted from session
 
                 self.router.call_handler(&mut context)
             }

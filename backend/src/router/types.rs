@@ -1,9 +1,19 @@
+use std::collections::HashMap;
 use pingora::http::{Method, RequestHeader, StatusCode};
 use pingora::proxy::Session;
+
+#[derive(Debug, Clone)]
+pub struct RequestSummary {
+    pub method: Method,
+    pub path: String,
+    pub params: HashMap<String, String>,
+}
 
 pub trait ContextTrait {
     fn method(&self) -> Method;
     fn path(&self) -> &str;
+    fn param(&self, key: &str) -> Option<&String>;
+    fn params(&self) -> &HashMap<String, String>;
     fn request_header(&self) -> &RequestHeader;
     fn request_body(&self) -> &Vec<u8>;
     fn session(&self) -> &Session;
@@ -31,34 +41,41 @@ pub type HandleMessage<T> = fn(&T, &mut dyn ContextTrait) -> Response;
 /// It implements the ContextTrait to provide access to request details and session information.
 /// It is expected to simplify or customize the usage of pingora::proxy::Session, particularly for this repository.
 pub struct Context<'a> {
-    method: Method,
-    path: String,
+    request_summary: RequestSummary,
     request_header: &'a RequestHeader,
     request_body: Vec<u8>,
     session: &'a Session,
-    memory: std::collections::HashMap<String, String>, // for storing key-value pairs
+    memory: HashMap<String, String>, // for storing key-value pairs
 }
 
 impl<'a> Context<'a> {
-    pub(crate) fn new(method: Method, path: String, body: Vec<u8>, session: &'a Session) -> Self {
+    pub(crate) fn new(request_summary: RequestSummary, body: Vec<u8>, session: &'a Session) -> Self {
+
         Context {
-            method,
-            path,
+            request_summary,
             request_header: session.req_header(),
             request_body: body,
             session,
-            memory: std::collections::HashMap::new(), // Initialize an empty HashMap for memory
+            memory: HashMap::new(), // Initialize an empty HashMap for memory
         }
     }
 }
 
 impl<'a> ContextTrait for Context<'a> {
     fn method(&self) -> Method {
-        self.method.clone()
+        self.request_summary.method.clone()
     }
 
     fn path(&self) -> &str {
-        self.path.as_str()
+        self.request_summary.path.as_str()
+    }
+
+    fn param(&self, key: &str) -> Option<&String> {
+        self.request_summary.params.get(key)
+    }
+
+    fn params(&self) -> &HashMap<String, String> {
+        &self.request_summary.params
     }
 
     fn request_header(&self) -> &RequestHeader {

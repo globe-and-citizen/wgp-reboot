@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use log::error;
 use pingora::http::StatusCode;
 use crate::message::types::request::{RequestBodyTrait, LoginRequestBody, RegisterRequestBody};
-use crate::message::types::response::{ResponseBodyTrait, ErrorResponseBody, GetProfileResponse, LoginResponseBody, RegisterResponseBody};
+use crate::message::types::response::{ResponseBodyTrait, ErrorResponseBody, GetProfileResponse, LoginResponseBody, RegisterResponseBody, GetPoemsResponse, GetPoemResponse};
 use crate::message::types::other::UserMetadata;
 use crate::message::db::WGPDatabase;
 use crate::message::utils::{create_jwt_token, get_username_from_token};
@@ -141,7 +141,7 @@ impl WGPMessageHandler {
         }
 
         // set credentials in the context for further use
-        ctx.set("username".to_string(), username.unwrap().to_string()); // temporary hardcoded username
+        ctx.set("username".to_string(), username.unwrap().to_string());
 
         // If the token is valid, continue processing the request
         Response::new(StatusCode::OK, None)
@@ -164,5 +164,39 @@ impl WGPMessageHandler {
                 None,
             )
         }
+    }
+
+    pub fn get_poems(&self, ctx: &mut dyn ContextTrait) -> Response {
+        let db = self.get_db();
+        let id = ctx.param("id");
+
+        if let Some(id) = id {
+            if let Some(poem) = db.get_poem(&id) {
+                let response_body = GetPoemResponse {
+                    id: poem.id,
+                    title: poem.title.to_string(),
+                    author: poem.author.to_string(),
+                    content: poem.content.to_string(),
+                };
+
+                return Response {
+                    status: StatusCode::OK,
+                    body: Some(response_body.to_bytes()),
+                };
+            }
+            return Response {
+                status: StatusCode::NOT_FOUND,
+                body: Some(ErrorResponseBody {
+                    error: "Id not found".to_string(),
+                }.to_bytes()),
+            };
+        }
+
+
+        let response_body = GetPoemsResponse {
+            poems: Box::from(db.get_poems())
+        };
+
+        Response::new(StatusCode::OK, Some(response_body.to_bytes()))
     }
 }

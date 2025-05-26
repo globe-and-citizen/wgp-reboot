@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
-use crate::message::types::other::UserMetadata;
+use crate::message::types::other::{Poem, UserMetadata};
 
 pub trait ResponseBodyTrait: Serialize + for<'de> Deserialize<'de> + Debug {
     fn to_bytes(&self) -> Vec<u8> {
@@ -33,4 +33,20 @@ pub struct GetProfileResponse {
     pub metadata: UserMetadata,
 }
 impl ResponseBodyTrait for GetProfileResponse {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetPoemResponse {
+    pub id: i32,
+    pub title: String,
+    pub author: String,
+    pub content: String,
+}
+
+impl ResponseBodyTrait for GetPoemResponse {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetPoemsResponse {
+    pub(crate) poems: Box<[Poem]>
+}
+impl ResponseBodyTrait for GetPoemsResponse {}
 

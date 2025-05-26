@@ -10,3 +10,11 @@ pub struct UserMetadata {
     pub location: String,
     pub website: String,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Poem {
+    pub id: i32,
+    pub title: String,
+    pub author: String,
+    pub content: String,
+}

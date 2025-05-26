@@ -1,9 +1,10 @@
 use std::collections::HashMap;
-use crate::message::types::other::UserMetadata;
+use crate::message::types::other::{Poem, UserMetadata};
 
 pub struct WGPDatabase {
     user_password: HashMap<String, String>,
     user_metadata: HashMap<String, UserMetadata>,
+    poems: Box<[Poem]>
 }
 
 impl WGPDatabase {
@@ -25,6 +26,39 @@ impl WGPDatabase {
                     website: "https://openai.com/chatgpt".to_string(),
                 })
             ]),
+
+            poems: Box::new([
+                Poem {
+                    id: 1,
+                    title: "The Road Not Taken".to_string(),
+                    author: "Robert Frost".to_string(),
+                    content: "Two roads diverged in a yellow wood,\nAnd sorry I could not travel both...".to_string(),
+                },
+                Poem {
+                    id: 2,
+                    title: "Still I Rise".to_string(),
+                    author: "Maya Angelou".to_string(),
+                    content: "You may write me down in history\nWith your bitter, twisted lies...".to_string(),
+                },
+                Poem {
+                    id: 3,
+                    title: "Ozymandias".to_string(),
+                    author: "Percy Bysshe Shelley".to_string(),
+                    content: "I met a traveller from an antique land\nWho said—“Two vast and trunkless legs of stone...".to_string(),
+                },
+                Poem {
+                    id: 4,
+                    title: "If—".to_string(),
+                    author: "Rudyard Kipling".to_string(),
+                    content: "If you can keep your head when all about you\nAre losing theirs and blaming it on you...".to_string(),
+                },
+                Poem {
+                    id: 5,
+                    title: "Annabel Lee".to_string(),
+                    author: "Edgar Allan Poe".to_string(),
+                    content: "It was many and many a year ago,\nIn a kingdom by the sea...".to_string(),
+                }
+            ]),
         }
     }
 
@@ -43,5 +77,13 @@ impl WGPDatabase {
 
     pub fn user_exists(&self, username: &str) -> bool {
         self.user_password.contains_key(username)
+    }
+
+    pub fn get_poems(&self) -> &[Poem] {
+        &self.poems
+    }
+
+    pub fn get_poem(&self, id: &str) -> Option<&Poem> {
+        self.poems.iter().find(|&poem| poem.id.to_string() == id)
     }
 }

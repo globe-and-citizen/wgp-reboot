@@ -63,20 +63,24 @@ impl<T> Router<T> {
         }
     }
 
+    fn get_base_path(&self, path: &str) -> String {
+        path.split('?').next().unwrap_or(path).to_string()
+    }
+
     pub fn post(&mut self, path: String, handlers: Box<[HandleMessage<T>]>) {
-        self.posts.insert(path, handlers);
+        self.posts.insert(self.get_base_path(&path), handlers);
     }
 
     pub fn get(&mut self, path: String, handlers: Box<[HandleMessage<T>]>) {
-        self.gets.insert(path, handlers);
+        self.gets.insert(self.get_base_path(&path), handlers);
     }
 
     pub fn put(&mut self, path: String, handlers: Box<[HandleMessage<T>]>) {
-        self.puts.insert(path, handlers);
+        self.puts.insert(self.get_base_path(&path), handlers);
     }
 
     pub fn delete(&mut self, path: String, handlers: Box<[HandleMessage<T>]>) {
-        self.deletes.insert(path, handlers);
+        self.deletes.insert(self.get_base_path(&path), handlers);
     }
 }
 
