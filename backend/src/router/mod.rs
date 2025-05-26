@@ -46,7 +46,7 @@ impl<T> Router<T> {
         }
     }
 
-    pub fn call_handler(&self, ctx: &dyn ContextTrait) -> Response {
+    pub fn call_handler(&self, ctx: &mut dyn ContextTrait) -> Response {
         let method = ctx.method();
         let path = ctx.path();
         if let Some(handlers) = self.get_handlers(&method, path) {

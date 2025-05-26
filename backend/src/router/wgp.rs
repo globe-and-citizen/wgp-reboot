@@ -11,6 +11,7 @@ pub struct WGPContext<'a> {
     request_header: &'a RequestHeader,
     request_body: Vec<u8>,
     session: &'a Session,
+    memory: std::collections::HashMap<String, String>, // for storing key-value pairs
 }
 
 impl<'a> WGPContext<'a> {
@@ -21,6 +22,7 @@ impl<'a> WGPContext<'a> {
             request_header: session.req_header(),
             request_body: body,
             session,
+            memory: std::collections::HashMap::new(), // Initialize an empty HashMap for memory
         }
     }
 }
@@ -44,5 +46,13 @@ impl<'a> ContextTrait for WGPContext<'a> {
 
     fn session(&self) -> &Session {
         self.session
+    }
+
+    fn get(&self, key: &str) -> Option<&String> {
+        self.memory.get(key)
+    }
+
+    fn set(&mut self, key: String, value: String) {
+        self.memory.insert(key, value);
     }
 }

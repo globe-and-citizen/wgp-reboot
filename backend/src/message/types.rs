@@ -39,15 +39,20 @@ pub struct RegisterResponseBody {
 }
 impl ResponseBody for RegisterResponseBody {}
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GetProfileResponse {
-    pub name: String,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserMetadata {
+    pub username: String,
     pub title: String,
     pub avatar: String,
     pub bio: String,
     pub email: String,
     pub location: String,
     pub website: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetProfileResponse {
+    pub metadata: UserMetadata,
 }
 
 impl ResponseBody for GetProfileResponse {}

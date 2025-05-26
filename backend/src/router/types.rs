@@ -7,6 +7,10 @@ pub trait ContextTrait {
     fn request_header(&self) -> &RequestHeader;
     fn request_body(&self) -> &Vec<u8>;
     fn session(&self) -> &Session;
+
+    /// get and set simple key-value pairs to use throughout the request handling
+    fn get(&self, key: &str) -> Option<&String>;
+    fn set(&mut self, key: String, value: String);
 }
 
 pub struct Response {
@@ -21,4 +25,4 @@ impl Response {
 }
 
 // Box<dyn std::error::Error + Send + Sync> is used to represent any error type that implements the std::error::Error trait and can be sent across thread boundaries.
-pub type HandleMessage<T> = fn(&T, &dyn ContextTrait) -> Response;
+pub type HandleMessage<T> = fn(&T, &mut dyn ContextTrait) -> Response;

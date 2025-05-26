@@ -1,6 +1,6 @@
 use std::string::ToString;
 use std::sync::Mutex;
-use crate::message::types::{ErrorResponseBody, GetProfileResponse, LoginRequestBody, LoginResponseBody, RegisterRequestBody, RegisterResponseBody};
+use crate::message::types::{ErrorResponseBody, GetProfileResponse, LoginRequestBody, LoginResponseBody, RegisterRequestBody, RegisterResponseBody, UserMetadata};
 use crate::message::{RequestBody, ResponseBody};
 use once_cell::sync::Lazy;
 use pingora::http::StatusCode;
@@ -32,7 +32,7 @@ impl WGPMessageHandler {
         }
     }
 
-    pub fn handle_login(&self, ctx: &dyn ContextTrait) -> Response {
+    pub fn handle_login(&self, ctx: &mut dyn ContextTrait) -> Response {
         let data = ctx.request_body();
         let (body, error, status) = Self::parse_request_body::<LoginRequestBody>(data);
         if status != StatusCode::OK {
@@ -61,7 +61,7 @@ impl WGPMessageHandler {
         )
     }
 
-    pub fn handle_register(&self, ctx: &dyn ContextTrait) -> Response {
+    pub fn handle_register(&self, ctx: &mut dyn ContextTrait) -> Response {
         let data = ctx.request_body();
         let (body, error, status) = Self::parse_request_body::<RegisterRequestBody>(data);
         if status != StatusCode::OK {
@@ -98,7 +98,7 @@ impl WGPMessageHandler {
         )
     }
 
-    pub fn authentication_middleware(&self, ctx: &dyn ContextTrait) -> Response {
+    pub fn authentication_middleware(&self, ctx: &mut dyn ContextTrait) -> Response {
         let token = ctx.request_header().headers.get("Authorization").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
         if token.is_none() || token.unwrap() != TEMPORARY_JWT_TOKEN {
             return Response::new(
@@ -111,16 +111,18 @@ impl WGPMessageHandler {
         Response::new(StatusCode::OK, None)
     }
 
-    pub fn get_profile(&self, ctx: &dyn ContextTrait) -> Response {
+    pub fn get_profile(&self, ctx: &mut dyn ContextTrait) -> Response {
         let response_body = GetProfileResponse { // todo fetch from database
-            name: "ChatGPT".to_string(),
-            title: "AI Assistant by OpenAI".to_string(),
-            avatar: "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg".to_string(),
-            bio: "ChatGPT is a language model designed to assist with writing, coding, learning, and more. \
+            metadata: UserMetadata {
+                username: "ChatGPT".to_string(),
+                title: "AI Assistant by OpenAI".to_string(),
+                avatar: "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg".to_string(),
+                bio: "ChatGPT is a language model designed to assist with writing, coding, learning, and more. \
             Trained on a wide range of data, it aims to provide accurate, clear, and human-like responses to support users in diverse tasks.".to_string(),
-            email: "Not applicable 😊".to_string(),
-            location: "The Cloud ☁️".to_string(),
-            website: "https://openai.com/chatgpt".to_string(),
+                email: "Not applicable 😊".to_string(),
+                location: "The Cloud ☁️".to_string(),
+                website: "https://openai.com/chatgpt".to_string(),
+            }
         };
         Response::new(StatusCode::OK, Some(response_body.to_bytes()))
     }

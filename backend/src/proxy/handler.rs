@@ -111,9 +111,9 @@ impl<T> ProxyHandler<T> {
                 // request_validation is called before this function, so we can assume that the request is valid
                 let (method, path) = ProxyHandler::<T>::extract_request_summary(session).unwrap();
 
-                let context = WGPContext::new(method, path, request_body, session); // todo rethink logic of creating context because method, path and body can be extracted from session
+                let mut context = WGPContext::new(method, path, request_body, session); // todo rethink logic of creating context because method, path and body can be extracted from session
 
-                self.router.call_handler(&context)
+                self.router.call_handler(&mut context)
             }
             Err(err) => {
                 error!("ERROR: {err}");
