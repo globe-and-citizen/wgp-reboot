@@ -13,6 +13,7 @@ use std::io::Write;
 
 use pingora::server::configuration::Opt;
 use pingora::server::Server;
+use crate::message::handler::WGPMessageHandler;
 
 fn log_init(filepath: &String, level: &LevelFilter) {
     let file = OpenOptions::new()
@@ -50,10 +51,11 @@ fn main() {
 
     log_init(&echo_config.log.path, &echo_config.log.to_level_filter());
 
-    let msg_handler = message::handler::MessageHandler::new();
+    let msg_handler = WGPMessageHandler::new();
     let mut router = router::Router::new(msg_handler);
-    router.post("/login".to_string(), Box::new([message::handler::MessageHandler::handle_login]));
-    router.post("/register".to_string(), Box::new([message::handler::MessageHandler::handle_register]));
+    router.post("/login".to_string(), Box::new([WGPMessageHandler::handle_login]));
+    router.post("/register".to_string(), Box::new([WGPMessageHandler::handle_register]));
+    router.get("/profile".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_profile]));
 
     let handler = proxy::handler::ProxyHandler::new(router);
 

@@ -38,3 +38,16 @@ pub struct RegisterResponseBody {
     pub message: String,
 }
 impl ResponseBody for RegisterResponseBody {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetProfileResponse {
+    pub name: String,
+    pub title: String,
+    pub avatar: String,
+    pub bio: String,
+    pub email: String,
+    pub location: String,
+    pub website: String,
+}
+
+impl ResponseBody for GetProfileResponse {}
