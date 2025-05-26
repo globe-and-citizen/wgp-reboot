@@ -7,10 +7,10 @@ type HandleMessage<T> = fn(&T, &Vec<u8>) -> (Option<Vec<u8>>, pingora::http::Sta
 pub struct Router<T> {
     handler: T,
     _groups: Vec<String>, // placeholder for later use
-    posts: HashMap<String, HandleMessage<T>>,
-    gets: HashMap<String, HandleMessage<T>>,
-    puts: HashMap<String, HandleMessage<T>>,
-    deletes: HashMap<String, HandleMessage<T>>,
+    posts: HashMap<String, Box<[HandleMessage<T>]>>,
+    gets: HashMap<String, Box<[HandleMessage<T>]>>,
+    puts: HashMap<String, Box<[HandleMessage<T>]>>,
+    deletes: HashMap<String, Box<[HandleMessage<T>]>>,
 }
 
 impl<T> Router<T> {
@@ -35,7 +35,7 @@ impl<T> Router<T> {
         }
     }
 
-    fn get_handler(&self, method: &Method, path: &str) -> Option<&HandleMessage<T>> {
+    fn get_handlers(&self, method: &Method, path: &str) -> Option<&Box<[HandleMessage<T>]>> {
         match *method {
             Method::POST => self.posts.get(path),
             Method::GET => self.gets.get(path),
@@ -46,26 +46,35 @@ impl<T> Router<T> {
     }
 
     pub fn call_handler(&self, method: &Method, path: &str, data: &Vec<u8>) -> (Option<Vec<u8>>, pingora::http::StatusCode) {
-        if let Some(handler) = self.get_handler(method, path) {
-            handler(&self.handler, data)
+        if let Some(handlers) = self.get_handlers(method, path) {
+            let mut response = None;
+            let mut status = pingora::http::StatusCode::OK;
+            for handler in handlers.iter() {
+                (response, status) = handler(&self.handler, data);
+                if status != pingora::http::StatusCode::OK {
+                    return (response, status);
+                }
+            }
+
+            (response, status)
         } else {
             return (None, pingora::http::StatusCode::NOT_FOUND);
         }
     }
 
-    pub fn post(&mut self, path: String, handler: HandleMessage<T>) {
-        self.posts.insert(path, handler);
+    pub fn post(&mut self, path: String, handlers: Box<[HandleMessage<T>]>) {
+        self.posts.insert(path, handlers);
     }
 
-    pub fn get(&mut self, path: String, handler: HandleMessage<T>) {
-        self.gets.insert(path, handler);
+    pub fn get(&mut self, path: String, handlers: Box<[HandleMessage<T>]>) {
+        self.gets.insert(path, handlers);
     }
 
-    pub fn put(&mut self, path: String, handler: HandleMessage<T>) {
-        self.puts.insert(path, handler);
+    pub fn put(&mut self, path: String, handlers: Box<[HandleMessage<T>]>) {
+        self.puts.insert(path, handlers);
     }
 
-    pub fn delete(&mut self, path: String, handler: HandleMessage<T>) {
-        self.deletes.insert(path, handler);
+    pub fn delete(&mut self, path: String, handlers: Box<[HandleMessage<T>]>) {
+        self.deletes.insert(path, handlers);
     }
 }
