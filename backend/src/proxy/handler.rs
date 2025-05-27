@@ -32,6 +32,7 @@ impl<T> ProxyHandler<T> {
                 "GET" => Method::GET,
                 "PUT" => Method::PUT,
                 "DELETE" => Method::DELETE,
+                "OPTIONS" => Method::OPTIONS,
                 _ => {
                     error!("Unsupported method: {}", parts[0].to_string());
                     return Err("Unsupported method")?;

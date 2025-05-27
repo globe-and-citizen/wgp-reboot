@@ -31,6 +31,7 @@ impl<T> Router<T> {
             Method::GET => self.gets.contains_key(path),
             Method::PUT => self.puts.contains_key(path),
             Method::DELETE => self.deletes.contains_key(path),
+            Method::OPTIONS => true,
             _ => false,
         }
     }
@@ -48,6 +49,11 @@ impl<T> Router<T> {
     pub fn call_handler(&self, ctx: &mut dyn ContextTrait) -> Response {
         let method = ctx.method();
         let path = ctx.path();
+
+        if method == Method::OPTIONS {
+            return Response::new(StatusCode::NO_CONTENT, None);
+        }
+
         if let Some(handlers) = self.get_handlers(&method, path) {
             let mut response = Response::new(StatusCode::OK, None);
             for handler in handlers.iter() {
