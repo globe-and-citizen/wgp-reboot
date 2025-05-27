@@ -1,10 +1,14 @@
 use std::collections::HashMap;
-use crate::message::types::other::{Poem, UserMetadata};
+use std::fs::File;
+use std::io::{BufReader, Read};
+use image::ImageFormat;
+use crate::message::types::other::{Image, Poem, UserMetadata};
 
 pub struct WGPDatabase {
     user_password: HashMap<String, String>,
     user_metadata: HashMap<String, UserMetadata>,
-    poems: Box<[Poem]>
+    poems: Box<[Poem]>,
+    images: Box<[Image]>,
 }
 
 impl WGPDatabase {
@@ -59,6 +63,39 @@ impl WGPDatabase {
                     content: "It was many and many a year ago,\nIn a kingdom by the sea...".to_string(),
                 }
             ]),
+
+            images: Box::new([
+                Image {
+                    id: 1,
+                    name: "Sample Image 1".to_string(),
+                    file_path: "src/message/images/sample1.jpeg".to_string(),
+                    content: vec![],
+                },
+                Image {
+                    id: 2,
+                    name: "Sample Image 2".to_string(),
+                    file_path: "src/message/images/sample2.jpeg".to_string(),
+                    content: vec![],
+                },
+                Image {
+                    id: 3,
+                    name: "Sample Image 3".to_string(),
+                    file_path: "src/message/images/sample3.jpeg".to_string(),
+                    content: vec![],
+                },
+                Image {
+                    id: 4,
+                    name: "Sample Image 4".to_string(),
+                    file_path: "src/message/images/sample4.jpeg".to_string(),
+                    content: vec![],
+                },
+                Image {
+                    id: 5,
+                    name: "Sample Image 5".to_string(),
+                    file_path: "src/message/images/sample5.jpeg".to_string(),
+                    content: vec![],
+                },
+            ]),
         }
     }
 
@@ -85,5 +122,40 @@ impl WGPDatabase {
 
     pub fn get_poem(&self, id: &str) -> Option<&Poem> {
         self.poems.iter().find(|&poem| poem.id.to_string() == id)
+    }
+
+    pub fn get_image(&mut self, id: &str) -> Result<&Image, String> {
+        for wgp_img in self.images.iter_mut() {
+            if wgp_img.id.to_string() == id {
+                if !wgp_img.content.is_empty() {
+                    return Ok(wgp_img)
+                }
+
+                let abs_path = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), wgp_img.file_path);
+
+                return match File::open(&abs_path) {
+                    Ok(file) => {
+                        match image::load(BufReader::new(file), ImageFormat::Jpeg) {
+                            Ok(img) => {
+                                wgp_img.content = img.into_bytes();
+                                println!("Read {} bytes from {}", wgp_img.content.len(), abs_path);
+                                Ok(wgp_img)
+                            }
+                            Err(err) => {
+                                Err(format!("Failed to decode image file {}: {}", wgp_img.file_path, err))
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        Err(format!("Failed to open image file {}: {}", wgp_img.file_path, err))
+                    }
+                };
+            };
+        }
+        Err(format!("Image with id {} not found", id))
+    }
+
+    pub fn get_images(&self) -> &Box<[Image]> {
+        &self.images
     }
 }

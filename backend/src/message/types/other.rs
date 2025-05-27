@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -17,4 +18,12 @@ pub struct Poem {
     pub title: String,
     pub author: String,
     pub content: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Image {
+    pub id: i32,
+    pub name: String,
+    pub file_path: String,
+    pub content: Vec<u8>
 }

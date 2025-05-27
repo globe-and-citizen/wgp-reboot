@@ -57,6 +57,7 @@ fn main() {
     router.post("/register".to_string(), Box::new([WGPMessageHandler::handle_register]));
     router.get("/profile".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_profile]));
     router.get("/poems?id={}".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_poems]));
+    router.get("/images?id={}".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_images]));
 
     let handler = proxy::handler::ProxyHandler::new(router);
 

@@ -50,3 +50,17 @@ pub struct GetPoemsResponse {
 }
 impl ResponseBodyTrait for GetPoemsResponse {}
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetImageResponse {
+    pub id: i32,
+    pub title: String,
+    pub content: Vec<u8>,
+}
+impl ResponseBodyTrait for GetImageResponse {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetImagesResponse {
+    pub images: Box<[GetImageResponse]>,
+}
+impl ResponseBodyTrait for GetImagesResponse {}
+
