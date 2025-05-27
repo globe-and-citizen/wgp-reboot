@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '@/components/HomeView.vue'
+import {getCookie} from "@/utils.ts";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -35,7 +36,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('jwt'); // todo
+  let token = getCookie('jwt'); // todo
   if (to.meta.requiresAuth && !token) {
     console.log('unauthorized');
     next('/');

@@ -4,11 +4,11 @@
     <form @submit.prevent="handleLogin">
       <div class="form-group">
         <label for="username">Username:</label>
-        <input type="text" id="username" v-model="username" required />
+        <input type="text" id="username" v-model="username" required/>
       </div>
       <div class="form-group">
         <label for="password">Password:</label>
-        <input type="password" id="password" v-model="password" required />
+        <input type="password" id="password" v-model="password" required/>
       </div>
       <button type="submit">Login</button>
     </form>
@@ -16,20 +16,33 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import {ref} from 'vue';
 
 const username = ref('');
 const password = ref('');
 
 const handleLogin = () => {
-  if (username.value == "tester" && password.value == "1234") {
-    localStorage.setItem('jwt', "fake-jwt-token");
-    alert(`Logged in as: ${username.value}`);
-    // Redirect to the profile page or another page
-    location.href = '/profile';
-  } else {
-    alert('Username or password is incorrect.');
-  }
+  fetch('http://localhost:6191/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      username: username.value,
+      password: password.value
+    })
+  }).then(async response => {
+    if (response.ok) {
+      const data = await response.json();
+      document.cookie = `jwt=${data.token}; path=/;`;
+      alert(`Logged in as: ${username.value}`);
+      location.href = '/profile';
+    } else {
+      alert('Username or password is incorrect.');
+    }
+  }).catch(() => {
+    alert('An error occurred while logging in.');
+  });
 };
 </script>
 

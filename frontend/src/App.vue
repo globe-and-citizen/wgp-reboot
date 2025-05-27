@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import {RouterLink, RouterView} from 'vue-router'
 import {computed} from "vue";
+import {getCookie} from "@/utils.ts";
 
 const isLoggedIn = computed(() => {
-  return localStorage.getItem('jwt') !== null
+  return getCookie("jwt") !== ""; // todo
 })
 
 function logout() {
-  localStorage.removeItem('jwt')
+  document.cookie = 'jwt=; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
   alert('Logged out successfully.')
   location.href = '/'
 }
