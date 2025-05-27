@@ -4,7 +4,7 @@ import {computed} from "vue";
 import {getCookie} from "@/utils.ts";
 
 const isLoggedIn = computed(() => {
-  return getCookie("jwt") !== ""; // todo
+  return getCookie("jwt") !== undefined && getCookie("jwt")?.length > 0; // todo
 })
 
 function logout() {
@@ -18,6 +18,7 @@ function logout() {
   <div style="position: relative; min-height: 4rem;">
     <nav>
       <RouterLink v-if="!isLoggedIn" to="/">Home</RouterLink>
+      <RouterLink v-if="!isLoggedIn" to="/register">Register</RouterLink>
       <div v-if="isLoggedIn">
         <RouterLink to="/poems">Poems</RouterLink>
         <RouterLink to="/pictures">Pictures</RouterLink>
