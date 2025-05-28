@@ -17,31 +17,19 @@
 
 <script setup>
 import {ref} from 'vue';
+import {wasmBackend} from "@/utils.js";
 
 const username = ref('');
 const password = ref('');
 
 const handleLogin = () => {
-  fetch('http://localhost:6191/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      username: username.value,
-      password: password.value
-    })
-  }).then(async response => {
-    if (response.ok) {
-      const data = await response.json();
-      document.cookie = `jwt=${data.token}; path=/;`;
-      alert(`Logged in as: ${username.value}`);
-      location.href = '/profile';
-    } else {
-      alert('Username or password is incorrect.');
-    }
-  }).catch(() => {
-    alert('An error occurred while logging in.');
+  wasmBackend.login(username.value, password.value)
+      .then(data => {
+        document.cookie = `jwt=${data.token}; path=/;`;
+        alert(`Logged in as: ${username.value}`);
+        location.href = '/profile';
+      }).catch((err) => {
+        alert(`An error occurred while logging in. ${err}`);
   });
 };
 </script>
