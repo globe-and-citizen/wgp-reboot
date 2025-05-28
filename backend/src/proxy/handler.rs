@@ -143,8 +143,8 @@ impl<T> ProxyHandler<T> {
         header.append_header("Content-Length", body_bytes.len().to_string()).unwrap();
         // access headers below are needed to pass browser's policy
         header.append_header("Access-Control-Allow-Origin", "*".to_string()).unwrap();
-        header.append_header("Access-Control-Allow-Methods", "POST".to_string()).unwrap();
-        header.append_header("Access-Control-Allow-Headers", "Content-Type".to_string()).unwrap();
+        header.append_header("Access-Control-Allow-Methods", "*".to_string()).unwrap();
+        header.append_header("Access-Control-Allow-Headers", "*".to_string()).unwrap();
         header.append_header("Access-Control-Max-Age", "86400".to_string()).unwrap();
         session.write_response_header_ref(&header).await
     }
