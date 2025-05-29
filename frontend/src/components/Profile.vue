@@ -1,20 +1,42 @@
-<script setup>
-const profile = {
-  name: "ChatGPT",
-  title: "AI Assistant by OpenAI",
-  avatar: "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg",
-  bio: `ChatGPT is a language model designed to assist with writing, coding, learning, and more.
-Trained on a wide range of data, it aims to provide accurate, clear, and human-like responses to support users in diverse tasks.`,
-  email: "Not applicable 😊",
-  location: "The Cloud ☁️",
-  website: "https://openai.com/chatgpt"
-}
+<script setup lang="ts">
+import {onMounted, ref} from 'vue';
+import {wasmBackend, getCookie} from '@/utils.js'; // Make sure this path is correct
+
+const profile = ref({
+  name: "",
+  title: "",
+  avatar: "",
+  bio: "",
+  email: "",
+  location: "",
+  website: ""
+});
+
+onMounted(() => {
+  let token = getCookie('jwt') || "";
+
+  wasmBackend.get_profile(token)
+      .then(data => {
+        const metadata = data.metadata || data["metadata"] || data.get("metadata");
+        profile.value = {
+          name: metadata.username || metadata['username'] || metadata.get('username') || "",
+          title: metadata.title || metadata['title'] || metadata.get('title') || "",
+          avatar: metadata.avatar || metadata['avatar'] || metadata.get('avatar') || "",
+          bio: metadata.bio || metadata['bio'] || metadata.get('bio') || "",
+          email: metadata.email || metadata['email'] || metadata.get('email') || "",
+          location: metadata.location || metadata['location'] || metadata.get('location') || "",
+          website: metadata.website || metadata['website'] || metadata.get('website') || ""
+        };
+      }).catch(err => {
+    console.error('Error fetching profile:', err);
+  })
+});
 </script>
 
 <template>
   <div class="profile-container">
     <div class="profile-card">
-      <img class="avatar" :src="profile.avatar" :alt="profile.name" />
+      <img class="avatar" :src="profile.avatar" :alt="profile.name"/>
       <h1>{{ profile.name }}</h1>
       <h2>{{ profile.title }}</h2>
       <p class="bio">{{ profile.bio }}</p>
@@ -79,6 +101,7 @@ h2 {
   color: #0077cc;
   text-decoration: none;
 }
+
 .contact a:hover {
   text-decoration: underline;
 }

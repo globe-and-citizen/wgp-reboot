@@ -25,7 +25,8 @@ const password = ref('');
 const handleLogin = () => {
   wasmBackend.login(username.value, password.value)
       .then(data => {
-        document.cookie = `jwt=${data.token}; path=/;`;
+        let token = data.token || data["token"] || data.get("token");
+        document.cookie = `jwt=${token}; path=/;`;
         alert(`Logged in as: ${username.value}`);
         location.href = '/profile';
       }).catch((err) => {

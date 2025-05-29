@@ -1,36 +1,29 @@
-<script setup>
-const poems = [
-  {
-    id: 1,
-    title: "The Road Not Taken",
-    author: "Robert Frost",
-    content: `Two roads diverged in a yellow wood,\nAnd sorry I could not travel both...`
-  },
-  {
-    id: 2,
-    title: "Still I Rise",
-    author: "Maya Angelou",
-    content: `You may write me down in history\nWith your bitter, twisted lies...`
-  },
-  {
-    id: 3,
-    title: "Ozymandias",
-    author: "Percy Bysshe Shelley",
-    content: `I met a traveller from an antique land\nWho said—“Two vast and trunkless legs of stone...`
-  },
-  {
-    id: 4,
-    title: "If—",
-    author: "Rudyard Kipling",
-    content: `If you can keep your head when all about you\nAre losing theirs and blaming it on you...`
-  },
-  {
-    id: 5,
-    title: "Annabel Lee",
-    author: "Edgar Allan Poe",
-    content: `It was many and many a year ago,\nIn a kingdom by the sea...`
-  }
-]
+<script setup lang="ts">
+import {onMounted, ref} from 'vue';
+import {wasmBackend, getCookie} from '@/utils.js';
+
+const poems = ref([]);
+
+onMounted(() => {
+  let token = getCookie('jwt') || "";
+
+  wasmBackend.get_poems(null, token)
+      .then(data => {
+        let list = data.poems || data["poems"] || data.get("poems");
+
+        for (let i = 0; i < list.length; i++) {
+          let poem = {
+            id: list[i].id || list[i]["id"] || list[i].get("id"),
+            title: list[i].title || list[i]["title"] || list[i].get("title"),
+            author: list[i].author || list[i]["author"] || list[i].get("author"),
+            content: list[i].content || list[i]["content"] || list[i].get("content")
+          }
+          poems.value.push(poem);
+        }
+      }).catch(err => {
+    console.error('Error fetching profile:', err);
+  })
+});
 </script>
 
 <template>

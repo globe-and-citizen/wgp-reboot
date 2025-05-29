@@ -1,31 +1,28 @@
-<script setup>
-const images = [
-  {
-    id: 1,
-    title: "Sunset Over the Hills",
-    src: "https://live.staticflickr.com/65535/50708980327_3b29ff3e65_h.jpg"
-  },
-  {
-    id: 2,
-    title: "Mountain Range",
-    src: "https://live.staticflickr.com/65535/50729525272_92a0202f37_h.jpg"
-  },
-  {
-    id: 3,
-    title: "City Skyline",
-    src: "https://live.staticflickr.com/65535/50722509432_44aa969d6a_h.jpg"
-  },
-  {
-    id: 4,
-    title: "Forest Path",
-    src: "https://live.staticflickr.com/65535/50690937702_c1e765dda2_h.jpg"
-  },
-  {
-    id: 5,
-    title: "Ocean Waves",
-    src: "https://live.staticflickr.com/65535/50344935577_10dc23e71b_h.jpg"
-  }
-]
+<script setup lang="ts">
+import {onMounted, ref} from 'vue';
+import {wasmBackend, getCookie} from '@/utils.js';
+
+const images = ref([]);
+
+onMounted(() => {
+  let token = getCookie('jwt') || "";
+
+  wasmBackend.get_images(null, token)
+      .then(data => {
+        let list = data.images || data["images"] || data.get("images");
+
+        for (let i = 0; i < list.length; i++) {
+          let image = {
+            id: list[i].id || list[i]["id"] || list[i].get("id"),
+            title: list[i].title || list[i]["title"] || list[i].get("title"),
+            content: list[i].content || list[i]["content"] || list[i].get("content"),
+          }
+          images.value.push(image);
+        }
+      }).catch(err => {
+    console.error('Error fetching profile:', err);
+  })
+});
 </script>
 
 <template>

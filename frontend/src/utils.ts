@@ -22,6 +22,8 @@ export const isLoggedIn = computed(() => {
 
 let backendConfig = new interceptorWasm.BackendConfig();
 backendConfig.base_url = "http://localhost:6191";
+backendConfig.login = "/login";
+backendConfig.register = "/register";
 backendConfig.get_image_path = "/images?id=";
 backendConfig.get_images_path = "/images";
 backendConfig.get_poem_path = "/poems?id=";
