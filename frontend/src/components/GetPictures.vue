@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import {onMounted, ref} from 'vue';
-import {wasmBackend, getCookie} from '@/utils.js';
+import { onMounted, ref } from 'vue';
+import {wasmBackend, getCookie, convertToImageUrl} from '@/utils.js';
 
-const images = ref([]);
+const images = ref<any[]>([]);
+const selectedImage = ref<any | null>(null); // For modal
+const showModal = ref(false);
 
 onMounted(() => {
   let token = getCookie('jwt') || "";
@@ -12,10 +14,12 @@ onMounted(() => {
         let list = data.images || data["images"] || data.get("images");
 
         for (let i = 0; i < list.length; i++) {
+          let bytes = list[i].content || list[i]["content"] || list[i].get("content");
+
           let image = {
             id: list[i].id || list[i]["id"] || list[i].get("id"),
             title: list[i].title || list[i]["title"] || list[i].get("title"),
-            content: list[i].content || list[i]["content"] || list[i].get("content"),
+            src: convertToImageUrl(bytes),
           }
           images.value.push(image);
         }
@@ -23,6 +27,32 @@ onMounted(() => {
     console.error('Error fetching profile:', err);
   })
 });
+
+function openImage(id: string) {
+  const token = getCookie('jwt') || "";
+  wasmBackend.get_images(id, token)
+      .then(data => {
+        let bytes = data.content || data["content"] || data.get("content");
+        console.log("image", data)
+        selectedImage.value = {
+          id: data.id || data["id"] || data.get("id"),
+          title: data.title || data["title"] || data.get("title"),
+          src: convertToImageUrl(bytes),
+        };
+
+        console.log("selectedImage", selectedImage.value)
+        showModal.value = true;
+      })
+      .catch(err => {
+        console.error('Error fetching full image:', err);
+      });
+}
+
+function closeModal() {
+  showModal.value = false;
+  if (selectedImage.value.src) URL.revokeObjectURL(selectedImage.value.src);
+  selectedImage.value = null;
+}
 </script>
 
 <template>
@@ -32,9 +62,19 @@ onMounted(() => {
         class="image-card"
         v-for="image in images"
         :key="image.id"
+        @click="openImage(`${image.id}`)"
     >
-      <img :src="image.src" :alt="image.title" />
+<!--      <img :src="image.src" :alt="image.title" />-->
       <h2>{{ image.title }}</h2>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+    <div class="modal-content">
+      <button class="close-button" @click="closeModal">✖</button>
+      <img :src="selectedImage?.src" :alt="selectedImage?.title" />
+      <h2>{{ selectedImage?.title }}</h2>
     </div>
   </div>
 </template>
@@ -55,6 +95,11 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   width: 100%;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.image-card:hover {
+  transform: scale(1.02);
 }
 
 .image-card img {
@@ -62,10 +107,54 @@ onMounted(() => {
   height: auto;
   object-fit: cover;
 }
-
 .image-card h2 {
   padding: 1rem;
   font-size: 1.1rem;
   text-align: center;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem;
+  max-width: 90%;
+  max-height: 90%;
+  overflow: auto;
+  text-align: center;
+  position: relative;
+}
+
+.modal-content img {
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 1rem;
+}
+
+.modal-content h2 {
+  font-size: 1.2rem;
+}
+
+.close-button {
+  position: absolute;
+  top: 0.5rem;
+  right: 1rem;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
 }
 </style>
