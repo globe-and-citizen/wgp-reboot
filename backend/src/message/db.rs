@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{BufReader, Read};
-use image::ImageFormat;
+use std::fs;
+use std::{path::PathBuf};
 use crate::message::types::other::{Image, Poem, UserMetadata};
+
 
 pub struct WGPDatabase {
     user_password: HashMap<String, String>,
@@ -68,31 +68,36 @@ impl WGPDatabase {
                 Image {
                     id: 1,
                     name: "Sample Image 1".to_string(),
-                    file_path: "src/message/images/sample1.jpeg".to_string(),
+                    file_path: "src/message/images".to_string(),
+                    file_name: "sample1.jpeg".to_string(),
                     content: vec![],
                 },
                 Image {
                     id: 2,
                     name: "Sample Image 2".to_string(),
-                    file_path: "src/message/images/sample2.jpeg".to_string(),
+                    file_path: "src/message/images".to_string(),
+                    file_name: "sample2.jpeg".to_string(),
                     content: vec![],
                 },
                 Image {
                     id: 3,
                     name: "Sample Image 3".to_string(),
-                    file_path: "src/message/images/sample3.jpeg".to_string(),
+                    file_path: "src/message/images".to_string(),
+                    file_name: "sample3.jpeg".to_string(),
                     content: vec![],
                 },
                 Image {
                     id: 4,
                     name: "Sample Image 4".to_string(),
-                    file_path: "src/message/images/sample4.jpeg".to_string(),
+                    file_path: "src/message/images".to_string(),
+                    file_name: "sample4.jpeg".to_string(),
                     content: vec![],
                 },
                 Image {
                     id: 5,
                     name: "Sample Image 5".to_string(),
-                    file_path: "src/message/images/sample5.jpeg".to_string(),
+                    file_path: "src/message/images".to_string(),
+                    file_name: "sample5.jpeg".to_string(),
                     content: vec![],
                 },
             ]),
@@ -131,25 +136,20 @@ impl WGPDatabase {
                     return Ok(wgp_img)
                 }
 
-                let abs_path = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), wgp_img.file_path);
+                let abs_path = format!("{}/{}/{}", env!("CARGO_MANIFEST_DIR"), wgp_img.file_path, wgp_img.file_name);
+                let mut path = PathBuf::from("images");
+                path.push(&abs_path);
 
-                return match File::open(&abs_path) {
-                    Ok(file) => {
-                        match image::load(BufReader::new(file), ImageFormat::Jpeg) {
-                            Ok(img) => {
-                                wgp_img.content = img.into_bytes();
-                                println!("Read {} bytes from {}", wgp_img.content.len(), abs_path);
-                                Ok(wgp_img)
-                            }
-                            Err(err) => {
-                                Err(format!("Failed to decode image file {}: {}", wgp_img.file_path, err))
-                            }
-                        }
+                return match fs::read(&path) {
+                    Ok(image_data) => {
+                        wgp_img.content = image_data.into();
+                        println!("Read {} bytes from {}", wgp_img.content.len(), abs_path);
+                        Ok(wgp_img)
                     }
                     Err(err) => {
                         Err(format!("Failed to open image file {}: {}", wgp_img.file_path, err))
                     }
-                };
+                }
             };
         }
         Err(format!("Image with id {} not found", id))

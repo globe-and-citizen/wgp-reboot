@@ -54,6 +54,7 @@ impl ResponseBodyTrait for GetPoemsResponse {}
 pub struct GetImageResponse {
     pub id: i32,
     pub title: String,
+    pub file_name: String,
     pub content: Vec<u8>,
 }
 impl ResponseBodyTrait for GetImageResponse {}

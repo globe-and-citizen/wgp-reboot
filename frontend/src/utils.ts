@@ -19,14 +19,14 @@ export const isLoggedIn = computed(() => {
     return getCookie("jwt") !== undefined && getCookie("jwt")?.length > 0; // todo
 })
 
-export function convertToImageUrl(bytes: Uint8Array | number[] | ArrayBuffer): string | null {
+export function convertToImageUrl(filename: string, bytes: Uint8Array | number[] | ArrayBuffer): string | null {
     let imageUrl = null;
     if (bytes && bytes.length > 0) {
         if (!(bytes instanceof Uint8Array)) {
             bytes = new Uint8Array(bytes);
         }
-        const blob = new Blob([bytes], { type: 'image/jpeg' });
-        imageUrl = URL.createObjectURL(blob);
+        let file = new File([bytes], filename, { type: "image/jpeg" });
+        imageUrl = URL.createObjectURL(file);
     }
     return imageUrl
 }

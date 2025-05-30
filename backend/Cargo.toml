@@ -18,5 +18,4 @@ config = "0.15.11"
 toml = "0.8.22"
 once_cell = "1.21.3"
 regex = "1.11.1"
-image = "0.25.5"
 

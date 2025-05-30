@@ -4,7 +4,7 @@ use log::error;
 use pingora::http::StatusCode;
 use crate::message::types::request::{RequestBodyTrait, LoginRequestBody, RegisterRequestBody};
 use crate::message::types::response::{ResponseBodyTrait, ErrorResponseBody, GetProfileResponse, LoginResponseBody, RegisterResponseBody, GetPoemsResponse, GetPoemResponse, GetImageResponse, GetImagesResponse};
-use crate::message::types::other::{Image, UserMetadata};
+use crate::message::types::other::{UserMetadata};
 use crate::message::db::WGPDatabase;
 use crate::message::utils::{create_jwt_token, get_username_from_token};
 use crate::router::types::{ContextTrait, Response};
@@ -206,24 +206,25 @@ impl WGPMessageHandler {
 
         // If an id is provided, fetch the specific image
         if let Some(id) = id {
-            match db.get_image(&id) {
+            return match db.get_image(&id) {
                 Ok(image) => {
                     let response_body = GetImageResponse {
                         id: image.id,
                         title: image.name.clone(),
+                        file_name: image.file_name.clone(),
                         content: image.content.clone(),
                     };
 
-                    return Response::new(StatusCode::OK, Some(response_body.to_bytes()));
+                    Response::new(StatusCode::OK, Some(response_body.to_bytes()))
                 }
                 Err(err) => {
                     error!("ERROR: {}", err);
-                    return Response::new(
+                    Response::new(
                         StatusCode::NOT_FOUND,
                         Some(ErrorResponseBody {
                             error: err,
-                        }.to_bytes()),
-                    );
+                        }.to_bytes())
+                    )
                 }
             }
         }
@@ -233,6 +234,7 @@ impl WGPMessageHandler {
         let img_response = images.into_iter().map(|img| GetImageResponse {
             id: img.id,
             title: img.name.clone(),
+            file_name: img.file_name.clone(),
             content: img.content.clone(),
         }).collect::<Vec<GetImageResponse>>();
 

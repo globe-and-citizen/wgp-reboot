@@ -15,11 +15,13 @@ onMounted(() => {
 
         for (let i = 0; i < list.length; i++) {
           let bytes = list[i].content || list[i]["content"] || list[i].get("content");
+          let filename = list[i].file_name || list[i]["file_name"] || list[i].get("file_name");
 
           let image = {
             id: list[i].id || list[i]["id"] || list[i].get("id"),
             title: list[i].title || list[i]["title"] || list[i].get("title"),
-            src: convertToImageUrl(bytes),
+            filename: filename,
+            src: convertToImageUrl(filename, bytes),
           }
           images.value.push(image);
         }
@@ -33,11 +35,13 @@ function openImage(id: string) {
   wasmBackend.get_images(id, token)
       .then(data => {
         let bytes = data.content || data["content"] || data.get("content");
+        let filename = data.file_name || data["file_name"] || data.get("file_name");
         console.log("image", data)
         selectedImage.value = {
           id: data.id || data["id"] || data.get("id"),
           title: data.title || data["title"] || data.get("title"),
-          src: convertToImageUrl(bytes),
+          filename: filename,
+          src: convertToImageUrl(filename, bytes),
         };
 
         console.log("selectedImage", selectedImage.value)
