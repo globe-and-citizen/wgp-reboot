@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import {onMounted, ref} from 'vue';
-import {wasmBackend, getCookie} from '@/utils.js';
+import {wasmBackend, getToken} from '@/utils.js';
 
 const poems = ref([]);
 const selectedPoem = ref<any | null>(null);
 const showModal = ref(false);
 
 function openPoem(id: string) {
-  let token = getCookie('jwt') || "";
+  let token = getToken('jwt') || "";
   wasmBackend.get_poems(id, token)
       .then(data => {
         selectedPoem.value = {
@@ -28,7 +28,7 @@ function closeModal() {
 }
 
 onMounted(() => {
-  let token = getCookie('jwt') || "";
+  let token = getToken('jwt') || "";
 
   wasmBackend.get_poems(null, token)
       .then(data => {

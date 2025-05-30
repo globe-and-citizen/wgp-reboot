@@ -17,7 +17,7 @@
 
 <script setup>
 import {ref} from 'vue';
-import {wasmBackend} from "@/utils.js";
+import {saveToken, wasmBackend} from "@/utils.js";
 
 const username = ref('');
 const password = ref('');
@@ -26,7 +26,7 @@ const handleLogin = () => {
   wasmBackend.login(username.value, password.value)
       .then(data => {
         let token = data.token || data["token"] || data.get("token");
-        document.cookie = `jwt=${token}; path=/;`;
+        saveToken(token);
         alert(`Logged in as: ${username.value}`);
         location.href = '/profile';
       }).catch((err) => {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {onMounted, ref} from 'vue';
-import {wasmBackend, getCookie} from '@/utils.js'; // Make sure this path is correct
+import {wasmBackend, getToken} from '@/utils.js'; // Make sure this path is correct
 
 const profile = ref({
   name: "",
@@ -13,7 +13,7 @@ const profile = ref({
 });
 
 onMounted(() => {
-  let token = getCookie('jwt') || "";
+  let token = getToken('jwt') || "";
 
   wasmBackend.get_profile(token)
       .then(data => {

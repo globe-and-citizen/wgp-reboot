@@ -1,12 +1,12 @@
 use std::string::ToString;
 use std::sync::{Arc, Mutex, MutexGuard};
-use log::error;
+use log::{debug, error};
 use pingora::http::StatusCode;
 use crate::message::types::request::{RequestBodyTrait, LoginRequestBody, RegisterRequestBody};
 use crate::message::types::response::{ResponseBodyTrait, ErrorResponseBody, GetProfileResponse, LoginResponseBody, RegisterResponseBody, GetPoemsResponse, GetPoemResponse, GetImageResponse, GetImagesResponse};
 use crate::message::types::other::{UserMetadata};
 use crate::message::db::WGPDatabase;
-use crate::message::utils::{create_jwt_token, get_username_from_token};
+use crate::message::utils::{create_jwt_token, verify_jwt_token};
 use crate::router::types::{ContextTrait, Response};
 
 pub struct WGPMessageHandler {
@@ -107,9 +107,10 @@ impl WGPMessageHandler {
     }
 
     pub fn authentication_middleware(&self, ctx: &mut dyn ContextTrait) -> Response {
-        let token = ctx.request_header().headers.get("Authorization").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
+        let token = ctx.request_header().headers.get("Authorization")
+            .and_then(|v| v.to_str().ok()).map(|s| s.to_string());
 
-        if token.is_none() { // todo update authorization logic
+        if token.is_none() {
             return Response::new(
                 StatusCode::UNAUTHORIZED,
                 Some(ErrorResponseBody {
@@ -117,34 +118,52 @@ impl WGPMessageHandler {
                 }.to_bytes()),
             );
         }
-        let token = token.unwrap();
 
-        // get login credentials from the authorization token
-        let username = get_username_from_token(&token);
-        if username.is_none() {
-            return Response::new(
-                StatusCode::UNAUTHORIZED,
-                Some(ErrorResponseBody {
-                    error: "Invalid token".to_string(),
-                }.to_bytes()),
-            );
+        let token = token.unwrap().replace(&"Bearer ".to_string(), &"".to_string());
+        debug!("token {}", token);
+
+        return  match verify_jwt_token(&token) {
+            Ok(token_claim) => {
+                let claims = token_claim.claims;
+
+                // get login credentials from the authorization token
+                let username = claims.get_username();
+                debug!("username: {}", username);
+                if username.is_empty() {
+                    return Response::new(
+                        StatusCode::UNAUTHORIZED,
+                        Some(ErrorResponseBody {
+                            error: "Invalid token".to_string(),
+                        }.to_bytes()),
+                    );
+                }
+
+                let db = self.get_db();
+                if !db.user_exists(&username) {
+                    return Response::new(
+                        StatusCode::UNAUTHORIZED,
+                        Some(ErrorResponseBody {
+                            error: "User does not exist".to_string(),
+                        }.to_bytes()),
+                    );
+                }
+
+                // set credentials in the context for further use
+                ctx.set("username".to_string(), username);
+
+                // If the token is valid, continue processing the request
+                Response::new(StatusCode::OK, None)
+            }
+            Err(err) => {
+                error!("Validate token error {err:?}");
+                Response::new(
+                    StatusCode::UNAUTHORIZED,
+                    Some(ErrorResponseBody {
+                        error: "Invalid token".to_string(),
+                    }.to_bytes()),
+                )
+            }
         }
-
-        let db = self.get_db();
-        if !db.user_exists(&username.unwrap()) {
-            return Response::new(
-                StatusCode::UNAUTHORIZED,
-                Some(ErrorResponseBody {
-                    error: "User does not exist".to_string(),
-                }.to_bytes()),
-            );
-        }
-
-        // set credentials in the context for further use
-        ctx.set("username".to_string(), username.unwrap().to_string());
-
-        // If the token is valid, continue processing the request
-        Response::new(StatusCode::OK, None)
     }
 
     pub fn get_profile(&self, ctx: &mut dyn ContextTrait) -> Response {

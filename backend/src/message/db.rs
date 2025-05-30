@@ -3,7 +3,6 @@ use std::fs;
 use std::{path::PathBuf};
 use crate::message::types::other::{Image, Poem, UserMetadata};
 
-
 pub struct WGPDatabase {
     user_password: HashMap<String, String>,
     user_metadata: HashMap<String, UserMetadata>,

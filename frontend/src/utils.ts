@@ -1,12 +1,24 @@
 import {computed} from "vue";
 import * as interceptorWasm from "interceptor-wasm"
 
-export function getCookie(name: string): string | undefined {
+function getCookie(name: string): string | undefined {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
 
     if (parts.length === 2)
         return parts.pop()?.split(';').shift();
+}
+
+export function saveToken(token: string) {
+    document.cookie = `jwt=${token}; path=/;`;
+}
+
+export function getToken(name: string): string | undefined {
+    let cookie = getCookie(name);
+    if (cookie) {
+        return `Bearer ${cookie}`
+    }
+    return undefined;
 }
 
 export function logout() {
