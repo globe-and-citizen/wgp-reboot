@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import {wasmBackend, getCookie, convertToImageUrl} from '@/utils.js';
+import {onMounted, ref} from 'vue';
+import {wasmBackend, getCookie, toImageUrl, toBlob, revokeURL} from '@/utils.js';
+import {save_image, get_image} from "interceptor-wasm"
 
 const images = ref<any[]>([]);
 const selectedImage = ref<any | null>(null); // For modal
@@ -21,7 +22,7 @@ onMounted(() => {
             id: list[i].id || list[i]["id"] || list[i].get("id"),
             title: list[i].title || list[i]["title"] || list[i].get("title"),
             filename: filename,
-            src: convertToImageUrl(filename, bytes),
+            src: toImageUrl(filename, bytes),
           }
           images.value.push(image);
         }
@@ -30,31 +31,42 @@ onMounted(() => {
   })
 });
 
-function openImage(id: string) {
+function openImage(id: string, title: string = "") {
   const token = getCookie('jwt') || "";
-  wasmBackend.get_images(id, token)
-      .then(data => {
-        let bytes = data.content || data["content"] || data.get("content");
-        let filename = data.file_name || data["file_name"] || data.get("file_name");
-        console.log("image", data)
-        selectedImage.value = {
-          id: data.id || data["id"] || data.get("id"),
-          title: data.title || data["title"] || data.get("title"),
-          filename: filename,
-          src: convertToImageUrl(filename, bytes),
-        };
 
-        console.log("selectedImage", selectedImage.value)
-        showModal.value = true;
-      })
-      .catch(err => {
-        console.error('Error fetching full image:', err);
-      });
+  get_image(title).then(data => {
+    if (data) {
+      selectedImage.value = {
+        id: id,
+        title: title,
+        src: URL.createObjectURL(data),
+      };
+    } else {
+      wasmBackend.get_images(id, token)
+          .then(data => {
+            let bytes = data.content || data["content"] || data.get("content");
+            let filename = data.file_name || data["file_name"] || data.get("file_name");
+            console.log("image", data)
+            selectedImage.value = {
+              id: data.id || data["id"] || data.get("id"),
+              title: data.title || data["title"] || data.get("title"),
+              filename: filename,
+              src: toImageUrl(filename, bytes),
+            };
+
+            save_image(selectedImage.value.title, toBlob(filename, bytes) as Blob)
+          }).catch(err => {
+            console.error('Error fetching full image:', err);
+          })
+    }
+    showModal.value = true;
+  }).catch(err => {
+    console.error('Error fetching full image:', err);
+  })
 }
 
 function closeModal() {
   showModal.value = false;
-  if (selectedImage.value.src) URL.revokeObjectURL(selectedImage.value.src);
   selectedImage.value = null;
 }
 </script>
@@ -66,9 +78,9 @@ function closeModal() {
         class="image-card"
         v-for="image in images"
         :key="image.id"
-        @click="openImage(`${image.id}`)"
+        @click="openImage(`${image.id}`, image.title)"
     >
-<!--      <img :src="image.src" :alt="image.title" />-->
+      <img :src="image.src" alt="Click to load image" @load="revokeURL(image.src)"/>
       <h2>{{ image.title }}</h2>
     </div>
   </div>
@@ -77,7 +89,7 @@ function closeModal() {
   <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
     <div class="modal-content">
       <button class="close-button" @click="closeModal">✖</button>
-      <img :src="selectedImage?.src" :alt="selectedImage?.title" />
+      <img :src="selectedImage?.src" :alt="selectedImage?.title" @load="revokeURL(selectedImage?.src)"/>
       <h2>{{ selectedImage?.title }}</h2>
     </div>
   </div>
@@ -102,6 +114,7 @@ function closeModal() {
   cursor: pointer;
   transition: transform 0.2s;
 }
+
 .image-card:hover {
   transform: scale(1.02);
 }
@@ -111,6 +124,7 @@ function closeModal() {
   height: auto;
   object-fit: cover;
 }
+
 .image-card h2 {
   padding: 1rem;
   font-size: 1.1rem;
@@ -124,7 +138,7 @@ function closeModal() {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0,0,0,0.6);
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
