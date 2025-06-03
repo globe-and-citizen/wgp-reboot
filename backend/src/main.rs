@@ -58,6 +58,7 @@ fn main() {
     router.get("/profile".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_profile]));
     router.get("/poems?id={}".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_poems]));
     router.get("/images?id={}".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_images]));
+    router.post("/ntor_init".to_string(), Box::new([WGPMessageHandler::nTor_init]));
 
     let handler = proxy::handler::ProxyHandler::new(router);
 

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::{path::PathBuf};
+use crate::message::ntor;
 use crate::message::types::other::{Image, Poem, UserMetadata};
 
 pub struct WGPDatabase {
@@ -8,6 +9,7 @@ pub struct WGPDatabase {
     user_metadata: HashMap<String, UserMetadata>,
     poems: Box<[Poem]>,
     images: Box<[Image]>,
+    pub ntor: HashMap<String, ntor::server::Server>
 }
 
 impl WGPDatabase {
@@ -100,6 +102,8 @@ impl WGPDatabase {
                     content: vec![],
                 },
             ]),
+
+            ntor: HashMap::new()
         }
     }
 

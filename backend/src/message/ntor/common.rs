@@ -1,5 +1,6 @@
 use rand_core::OsRng;
 use x25519_dalek::{PublicKey, StaticSecret};
+use crate::message::ntor::utils::vec_to_array32;
 
 pub struct PrivatePublicKeyPair {
     // In the future, type StaticSecret should be reserved for the server's static and the EphemeralSecret reserved for the ephemeral private key.
@@ -26,6 +27,15 @@ pub struct Certificate {
 // In the paper, the outgoing message is ("ntor", B_id, client_ephemeral_public_key).
 pub struct InitSessionMessage {
     pub client_ephemeral_public_key: PublicKey,
+}
+
+impl InitSessionMessage {
+    pub fn from(bytes: Vec<u8>) -> Self {
+        let u8_array = vec_to_array32(bytes);
+        InitSessionMessage {
+            client_ephemeral_public_key: PublicKey::from(u8_array),
+        }
+    }
 }
 
 // In the paper, the return message is ("ntor", server_ephemeral_public_key, t_b_hash).

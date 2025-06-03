@@ -21,3 +21,8 @@ pub struct RegisterRequestBody {
 }
 impl RequestBodyTrait for RegisterRequestBody {}
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct nTorInitRequestBody {
+    pub public_key: Vec<u8>
+}
+impl RequestBodyTrait for nTorInitRequestBody {}

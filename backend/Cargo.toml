@@ -20,3 +20,14 @@ once_cell = "1.21.3"
 regex = "1.11.1"
 jsonwebtoken = "9.3.1"
 
+#ntor
+ring = "0.17.8"
+hmac = "0.12"
+sha2 = "0.10"
+curve25519-dalek = "4.1.1"
+x25519-dalek = {version="^2.0.1", features = ["static_secrets"] }
+rand_core = {version="0.6.4", features = ["std"]}
+rand = "0.9.1"
+
+#
+uuid = { version = "1.16.0", features = ["v4"] }

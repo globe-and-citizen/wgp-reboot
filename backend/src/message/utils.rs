@@ -1,5 +1,6 @@
 use jsonwebtoken::{decode, DecodingKey, encode, EncodingKey, Header, TokenData, Validation, errors::Error as JwtError};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 const JWT_SECRET: &[u8; 18] = b"this is wgp secret";
 
@@ -39,4 +40,8 @@ pub fn verify_jwt_token(token: &str) -> Result<TokenData<Claims>, JwtError> {
         &DecodingKey::from_secret(JWT_SECRET),
         &Validation::default(),
     )
+}
+
+pub fn new_nTor_session_id() -> String {
+    Uuid::new_v4().to_string()
 }

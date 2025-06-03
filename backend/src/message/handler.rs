@@ -2,11 +2,13 @@ use std::string::ToString;
 use std::sync::{Arc, Mutex, MutexGuard};
 use log::{debug, error};
 use pingora::http::StatusCode;
-use crate::message::types::request::{RequestBodyTrait, LoginRequestBody, RegisterRequestBody};
-use crate::message::types::response::{ResponseBodyTrait, ErrorResponseBody, GetProfileResponse, LoginResponseBody, RegisterResponseBody, GetPoemsResponse, GetPoemResponse, GetImageResponse, GetImagesResponse};
+use crate::message::types::request::{RequestBodyTrait, LoginRequestBody, RegisterRequestBody, nTorInitRequestBody};
+use crate::message::types::response::{ResponseBodyTrait, ErrorResponseBody, GetProfileResponse, LoginResponseBody, RegisterResponseBody, GetPoemsResponse, GetPoemResponse, GetImageResponse, GetImagesResponse, nTorInitResponse};
 use crate::message::types::other::{UserMetadata};
 use crate::message::db::WGPDatabase;
-use crate::message::utils::{create_jwt_token, verify_jwt_token};
+use crate::message::ntor::server::{Server as nTorServer};
+use crate::message::ntor::common::{InitSessionMessage, InitSessionResponse};
+use crate::message::utils::{create_jwt_token, new_nTor_session_id, verify_jwt_token};
 use crate::router::types::{ContextTrait, Response};
 
 pub struct WGPMessageHandler {
@@ -261,5 +263,45 @@ impl WGPMessageHandler {
             images: Box::from(img_response)
         };
         Response::new(StatusCode::OK, Some(response_body.to_bytes()))
+    }
+
+    pub fn nTor_init(&self, ctx: &mut dyn ContextTrait) -> Response {
+        let data = ctx.request_body();
+        let (body, error, status) = Self::parse_request_body::<nTorInitRequestBody>(data);
+        if status != StatusCode::OK {
+            return Response::new(status, error.map(|e| e.to_bytes()));
+        }
+
+        let request_body = body.unwrap(); // Unwrap the Option, safe because we checked status
+
+        // Spin up a server
+        let server_id = String::from("my server id");
+        let mut server   = nTorServer::new(server_id);
+
+        if request_body.public_key.len() != 32 {
+            return Response::new(StatusCode::BAD_REQUEST, None)
+        }
+
+        // Client initializes session with the server
+        let init_session_msg = InitSessionMessage::from(request_body.public_key);
+
+        let init_session_response = server.accept_init_session_request(&init_session_msg);
+
+        let ntor_session_id = new_nTor_session_id();
+
+        let response = nTorInitResponse {
+            public_key: Vec::from(init_session_response.server_ephemeral_public_key.to_bytes()),
+            t_hash: init_session_response.t_hash,
+            session_id: ntor_session_id.clone()
+        };
+
+        // save nTor session
+        let mut db = self.get_db();
+        db.ntor.insert(ntor_session_id, server);
+
+        Response::new(
+            StatusCode::OK,
+            Some(response.to_bytes()),
+        )
     }
 }

@@ -19,6 +19,7 @@ impl ResponseBodyTrait for ErrorResponseBody {}
 pub struct LoginResponseBody {
     pub token: String,
 }
+
 impl ResponseBodyTrait for LoginResponseBody {}
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -26,12 +27,14 @@ pub struct RegisterResponseBody {
     pub success: bool,
     pub message: String,
 }
+
 impl ResponseBodyTrait for RegisterResponseBody {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetProfileResponse {
     pub metadata: UserMetadata,
 }
+
 impl ResponseBodyTrait for GetProfileResponse {}
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -46,8 +49,9 @@ impl ResponseBodyTrait for GetPoemResponse {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetPoemsResponse {
-    pub(crate) poems: Box<[Poem]>
+    pub(crate) poems: Box<[Poem]>,
 }
+
 impl ResponseBodyTrait for GetPoemsResponse {}
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -57,11 +61,21 @@ pub struct GetImageResponse {
     pub file_name: String,
     pub content: Vec<u8>,
 }
+
 impl ResponseBodyTrait for GetImageResponse {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetImagesResponse {
     pub images: Box<[GetImageResponse]>,
 }
+
 impl ResponseBodyTrait for GetImagesResponse {}
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct nTorInitResponse {
+    pub public_key: Vec<u8>,
+    pub t_hash: Vec<u8>,
+    pub session_id: String,
+}
+
+impl ResponseBodyTrait for nTorInitResponse {}
