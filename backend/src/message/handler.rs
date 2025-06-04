@@ -3,13 +3,14 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use log::{debug, error};
 use pingora::http::StatusCode;
 use crate::config::HandlerConfig;
-use crate::message::types::request::{RequestBodyTrait, LoginRequestBody, RegisterRequestBody, nTorInitRequestBody};
-use crate::message::types::response::{ResponseBodyTrait, ErrorResponseBody, GetProfileResponse, LoginResponseBody, RegisterResponseBody, GetPoemsResponse, GetPoemResponse, GetImageResponse, GetImagesResponse, nTorInitResponse, nTorEncryptResponse};
+use crate::message::types::{RequestBodyTrait, ResponseBodyTrait, NTorEncryptMessage};
+use crate::message::types::request::{LoginRequestBody, RegisterRequestBody, NTorInitRequestBody};
+use crate::message::types::response::{ErrorResponseBody, GetProfileResponse, LoginResponseBody, RegisterResponseBody, GetPoemsResponse, GetPoemResponse, GetImageResponse, GetImagesResponse, NTorInitResponse};
 use crate::message::types::other::{UserMetadata};
 use crate::message::db::WGPDatabase;
 use crate::message::ntor::server::{Server as nTorServer};
-use crate::message::ntor::common::{InitSessionMessage, InitSessionResponse};
-use crate::message::utils::{create_jwt_token, json_to_vec, new_nTor_session_id, string_to_array32, vec_to_json, verify_jwt_token};
+use crate::message::ntor::common::{InitSessionMessage};
+use crate::message::utils::{create_jwt_token, new_nTor_session_id, string_to_array32, verify_jwt_token};
 use crate::router::types::{ContextTrait, Response};
 
 pub struct WGPMessageHandler {
@@ -50,7 +51,7 @@ impl WGPMessageHandler {
     }
 
     pub fn handle_login(&self, ctx: &mut dyn ContextTrait) -> Response {
-        let data = ctx.request_body();
+        let data = ctx.get_request_body();
         let (body, error, status) = Self::parse_request_body::<LoginRequestBody>(data);
         if status != StatusCode::OK {
             return Response::new(status, error.map(|e| e.to_bytes()));
@@ -78,7 +79,7 @@ impl WGPMessageHandler {
     }
 
     pub fn handle_register(&self, ctx: &mut dyn ContextTrait) -> Response {
-        let data = ctx.request_body();
+        let data = ctx.get_request_body();
         let (body, error, status) = Self::parse_request_body::<RegisterRequestBody>(data);
         if status != StatusCode::OK {
             return Response::new(
@@ -134,7 +135,7 @@ impl WGPMessageHandler {
         let token = token.unwrap().replace(&"Bearer ".to_string(), &"".to_string());
         debug!("token {}", token);
 
-        return  match verify_jwt_token(&token, self.jwt_secret) {
+        return match verify_jwt_token(&token, self.jwt_secret) {
             Ok(token_claim) => {
                 let claims = token_claim.claims;
 
@@ -175,7 +176,7 @@ impl WGPMessageHandler {
                     }.to_bytes()),
                 )
             }
-        }
+        };
     }
 
     pub fn get_profile(&self, ctx: &mut dyn ContextTrait) -> Response {
@@ -228,7 +229,7 @@ impl WGPMessageHandler {
             poems: Box::from(db.get_poems())
         };
 
-        ctx.set("response_body".to_string(), vec_to_json(response_body.to_bytes()));
+        ctx.set_response_body(response_body.to_bytes());
         Response::new(StatusCode::OK, Some(response_body.to_bytes()))
     }
 
@@ -255,10 +256,10 @@ impl WGPMessageHandler {
                         StatusCode::NOT_FOUND,
                         Some(ErrorResponseBody {
                             error: err,
-                        }.to_bytes())
+                        }.to_bytes()),
                     )
                 }
-            }
+            };
         }
 
         // If no id is provided, return all images
@@ -276,9 +277,9 @@ impl WGPMessageHandler {
         Response::new(StatusCode::OK, Some(response_body.to_bytes()))
     }
 
-    pub fn nTor_init(&self, ctx: &mut dyn ContextTrait) -> Response {
-        let data = ctx.request_body();
-        let (body, error, status) = Self::parse_request_body::<nTorInitRequestBody>(data);
+    pub fn ntor_init(&self, ctx: &mut dyn ContextTrait) -> Response {
+        let data = ctx.get_request_body();
+        let (body, error, status) = Self::parse_request_body::<NTorInitRequestBody>(data);
         if status != StatusCode::OK {
             return Response::new(status, error.map(|e| e.to_bytes()));
         }
@@ -288,11 +289,11 @@ impl WGPMessageHandler {
         // todo I think there are prettier ways to use nTor since we are free to modify the nTor crate, but I'm lazy
         let mut ntor_server = nTorServer::new_with_secret(
             self.config.ntor_server_id.clone(),
-            self.ntor_static_secret
+            self.ntor_static_secret,
         );
 
         if request_body.public_key.len() != 32 {
-            return Response::new(StatusCode::BAD_REQUEST, None)
+            return Response::new(StatusCode::BAD_REQUEST, None);
         }
 
         // Client initializes session with the server
@@ -302,10 +303,10 @@ impl WGPMessageHandler {
 
         let ntor_session_id = new_nTor_session_id();
 
-        let response = nTorInitResponse {
+        let response = NTorInitResponse {
             public_key: Vec::from(init_session_response.server_ephemeral_public_key.to_bytes()),
             t_hash: init_session_response.t_hash,
-            session_id: ntor_session_id.clone()
+            session_id: ntor_session_id.clone(),
         };
 
         // save nTor session
@@ -318,34 +319,88 @@ impl WGPMessageHandler {
         )
     }
 
-    pub fn nTor_encrypt(&self, ctx: &mut dyn ContextTrait) -> Response {
-        let response_body = ctx.get("response_body");
-        let response_bytes = response_body.map_or_else(|| vec![], |v| json_to_vec(v));
-
+    pub fn ntor_encrypt(&self, ctx: &mut dyn ContextTrait) -> Response {
+        let response_bytes = ctx.get_response_body();
         let db = self.get_db();
 
         // todo consider where to put ntor session id
-        let nTor_session_id = ctx.request_header().headers.get("nTor_session_id")
+        let ntor_session_id = ctx.request_header().headers.get("nTor_session_id")
             .and_then(|v| v.to_str().ok()).map(|s| s.to_string());
 
-        if let Some(session_id) = nTor_session_id {
-            println!("Session id: {}", session_id);
+        if let Some(session_id) = ntor_session_id {
+            debug!("Session id: {}", session_id);
             let ntor_server = db.get_ntor_session(&session_id);
+            // debug!("Response bytes: {}", hex::encode(response_bytes.clone()));
 
             if let Some(server) = ntor_server {
-                let encrypted_messages = response_bytes; // todo encrypt here
-                return Response::new(
-                    StatusCode::OK,
-                    Some(nTorEncryptResponse {
-                        encrypted: encrypted_messages,
-                    }.to_bytes())
-                )
+                return match server.encrypt(response_bytes.clone()) {
+                    Ok((nonce, encrypted)) => {
+                        // let decrypted = server.decrypt(nonce.clone(), encrypted.clone()).unwrap();
+                        // println!("Decrypted bytes: {}", hex::encode(decrypted));
+                        Response::new(
+                            StatusCode::OK,
+                            Some(NTorEncryptMessage { nonce, encrypted }.to_bytes()),
+                        )
+                    }
+                    Err(err) => {
+                        error!("unable to encrypt: {}", err);
+                        Response::new(
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            None,
+                        )
+                    }
+                }
             }
         }
 
         Response::new(
             StatusCode::BAD_REQUEST,
-            Some(ErrorResponseBody { error: "no nTor session found".to_string() }.to_bytes())
+            Some(ErrorResponseBody { error: "no nTor session found".to_string() }.to_bytes()),
         )
     }
+
+    pub fn ntor_decrypt(&self, ctx: &mut dyn ContextTrait) -> Response {
+        let data = ctx.get_request_body();
+        let (body, error, status) = Self::parse_request_body::<NTorEncryptMessage>(data);
+        if status != StatusCode::OK {
+            return Response::new(status, error.map(|e| e.to_bytes()));
+        }
+
+        let request_body = body.unwrap(); // Unwrap the Option, safe because we checked status
+
+        // todo consider where to put ntor session id
+        let ntor_session_id = ctx.request_header().headers.get("nTor_session_id")
+            .and_then(|v| v.to_str().ok()).map(|s| s.to_string());
+
+        if let Some(session_id) = ntor_session_id {
+            debug!("Session id: {}", session_id);
+            let db = self.get_db();
+            let ntor_server = db.get_ntor_session(&session_id);
+
+            if let Some(server) = ntor_server {
+                return match server.decrypt(request_body.nonce, request_body.encrypted) {
+                    Ok(decrypted) => {
+                        ctx.set_request_body(decrypted);
+                        Response::new(
+                            StatusCode::OK,
+                            None,
+                        )
+                    }
+                    Err(err) => {
+                        error!("unable to decrypt: {}", err);
+                        Response::new(
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            None,
+                        )
+                    }
+                }
+            }
+        }
+
+        Response::new(
+            StatusCode::BAD_REQUEST,
+            Some(ErrorResponseBody { error: "no nTor session found".to_string() }.to_bytes()),
+        )
+    }
+
 }

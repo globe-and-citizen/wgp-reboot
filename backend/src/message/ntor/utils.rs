@@ -8,3 +8,4 @@ pub fn vec_to_array32(vec: Vec<u8>) -> [u8; 32] {
         [0u8; 32]
     }
 }
+

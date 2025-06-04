@@ -1,12 +1,7 @@
 use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use crate::message::types::other::{Poem, UserMetadata};
-
-pub trait ResponseBodyTrait: Serialize + for<'de> Deserialize<'de> + Debug {
-    fn to_bytes(&self) -> Vec<u8> {
-        serde_json::to_vec(self).unwrap()
-    }
-}
+use crate::message::types::ResponseBodyTrait;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ErrorResponseBody {
@@ -72,17 +67,10 @@ pub struct GetImagesResponse {
 impl ResponseBodyTrait for GetImagesResponse {}
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct nTorInitResponse {
+pub struct NTorInitResponse {
     pub public_key: Vec<u8>,
     pub t_hash: Vec<u8>,
     pub session_id: String,
 }
 
-impl ResponseBodyTrait for nTorInitResponse {}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct nTorEncryptResponse {
-    pub encrypted: Vec<u8>
-}
-
-impl ResponseBodyTrait for nTorEncryptResponse {}
+impl ResponseBodyTrait for NTorInitResponse {}

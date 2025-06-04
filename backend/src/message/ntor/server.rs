@@ -6,9 +6,9 @@ use crate::message::ntor::common::{
     PrivatePublicKeyPair,
 };
 use hmac::{Hmac, Mac};
-use rand_core::OsRng;
 use sha2::{Digest, Sha256};
 use x25519_dalek::{PublicKey, StaticSecret};
+use crate::message::ntor::common;
 
 pub struct Server {
     static_key_pair: PrivatePublicKeyPair,
@@ -127,5 +127,24 @@ impl Server {
             server_ephemeral_public_key: self.ephemeral_key_pair.public_key,
             t_hash: output_hash,
         }
+    }
+
+    pub fn encrypt(&self, data: Vec<u8>) -> Result<([u8; 12], Vec<u8>), &'static str> {
+        if let Some(key) = self.shared_secret.clone() {
+            let mut encrypt_key = key.clone(); // use key derivation
+            encrypt_key.extend(key.clone());
+            println!("Shared key: {}", hex::encode(key.clone()));
+            return common::encrypt(encrypt_key, data)
+        }
+        Err("no encryption key found")
+    }
+
+    pub fn decrypt(&self, nonce: [u8; 12], data: Vec<u8>) -> Result<Vec<u8>, &'static str> {
+        if let Some(key) = self.shared_secret.clone() {
+            let mut decrypt_key = key.clone();
+            decrypt_key.extend(key.clone());
+            return common::decrypt(nonce, decrypt_key, data);
+        }
+        Err("no decryption key found")
     }
 }
