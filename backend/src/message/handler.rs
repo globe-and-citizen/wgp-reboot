@@ -2,24 +2,34 @@ use std::string::ToString;
 use std::sync::{Arc, Mutex, MutexGuard};
 use log::{debug, error};
 use pingora::http::StatusCode;
+use crate::config::HandlerConfig;
 use crate::message::types::request::{RequestBodyTrait, LoginRequestBody, RegisterRequestBody, nTorInitRequestBody};
 use crate::message::types::response::{ResponseBodyTrait, ErrorResponseBody, GetProfileResponse, LoginResponseBody, RegisterResponseBody, GetPoemsResponse, GetPoemResponse, GetImageResponse, GetImagesResponse, nTorInitResponse, nTorEncryptResponse};
 use crate::message::types::other::{UserMetadata};
 use crate::message::db::WGPDatabase;
 use crate::message::ntor::server::{Server as nTorServer};
 use crate::message::ntor::common::{InitSessionMessage, InitSessionResponse};
-use crate::message::utils::{create_jwt_token, json_to_vec, new_nTor_session_id, vec_to_json, verify_jwt_token};
+use crate::message::utils::{create_jwt_token, json_to_vec, new_nTor_session_id, string_to_array32, vec_to_json, verify_jwt_token};
 use crate::router::types::{ContextTrait, Response};
 
 pub struct WGPMessageHandler {
+    config: HandlerConfig,
+    ntor_static_secret: [u8; 32],
+    jwt_secret: [u8; 32],
     // use std::sync::Mutex to make db mutable without requiring WGPMessageHandler itself to be mutable,
     // and use an Arc if we need shared ownership across threads.
     db: Arc<Mutex<WGPDatabase>>,
 }
 
 impl WGPMessageHandler {
-    pub fn new() -> Self {
+    pub fn new(config: HandlerConfig) -> Self {
+        let ntor_secret = string_to_array32(config.ntor_static_secret.clone()).unwrap();
+        let jwt_secret = string_to_array32(config.jwt_secret.clone()).unwrap();
+
         WGPMessageHandler {
+            config,
+            ntor_static_secret: ntor_secret,
+            jwt_secret,
             db: Arc::new(Mutex::new(WGPDatabase::new())),
         }
     }
@@ -53,7 +63,7 @@ impl WGPMessageHandler {
                 return Response::new(
                     StatusCode::OK,
                     Some(LoginResponseBody {
-                        token: create_jwt_token(request_body.username),
+                        token: create_jwt_token(request_body.username, self.jwt_secret),
                     }.to_bytes()),
                 );
             }
@@ -124,7 +134,7 @@ impl WGPMessageHandler {
         let token = token.unwrap().replace(&"Bearer ".to_string(), &"".to_string());
         debug!("token {}", token);
 
-        return  match verify_jwt_token(&token) {
+        return  match verify_jwt_token(&token, self.jwt_secret) {
             Ok(token_claim) => {
                 let claims = token_claim.claims;
 
@@ -275,9 +285,11 @@ impl WGPMessageHandler {
 
         let request_body = body.unwrap(); // Unwrap the Option, safe because we checked status
 
-        // Spin up a server
-        let server_id = String::from("my server id");
-        let mut server   = nTorServer::new(server_id);
+        // todo I think there are prettier ways to use nTor since we are free to modify the nTor crate, but I'm lazy
+        let mut ntor_server = nTorServer::new_with_secret(
+            self.config.ntor_server_id.clone(),
+            self.ntor_static_secret
+        );
 
         if request_body.public_key.len() != 32 {
             return Response::new(StatusCode::BAD_REQUEST, None)
@@ -286,7 +298,7 @@ impl WGPMessageHandler {
         // Client initializes session with the server
         let init_session_msg = InitSessionMessage::from(request_body.public_key);
 
-        let init_session_response = server.accept_init_session_request(&init_session_msg);
+        let init_session_response = ntor_server.accept_init_session_request(&init_session_msg);
 
         let ntor_session_id = new_nTor_session_id();
 
@@ -298,7 +310,7 @@ impl WGPMessageHandler {
 
         // save nTor session
         let mut db = self.get_db();
-        db.save_ntor_session(&ntor_session_id, server);
+        db.save_ntor_session(&ntor_session_id, ntor_server);
 
         Response::new(
             StatusCode::OK,

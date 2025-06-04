@@ -6,8 +6,9 @@ use crate::message::ntor::common::{
     PrivatePublicKeyPair,
 };
 use hmac::{Hmac, Mac};
+use rand_core::OsRng;
 use sha2::{Digest, Sha256};
-use x25519_dalek::PublicKey;
+use x25519_dalek::{PublicKey, StaticSecret};
 
 pub struct Server {
     static_key_pair: PrivatePublicKeyPair,
@@ -27,6 +28,22 @@ impl Server {
             server_id,
             shared_secret: None,
             static_key_pair: generate_private_public_key_pair(),
+        }
+    }
+
+    pub fn new_with_secret(server_id: String, secret: [u8; 32]) -> Self {
+        let static_private_key = StaticSecret::from(secret);
+        Self {
+            ephemeral_key_pair: PrivatePublicKeyPair {
+                private_key: None,
+                public_key: PublicKey::from([0; 32]),
+            },
+            server_id,
+            shared_secret: None,
+            static_key_pair: PrivatePublicKeyPair {
+                private_key: Some(static_private_key.clone()),
+                public_key: PublicKey::from(&static_private_key),
+            },
         }
     }
 
