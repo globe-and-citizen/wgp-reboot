@@ -79,3 +79,10 @@ pub struct nTorInitResponse {
 }
 
 impl ResponseBodyTrait for nTorInitResponse {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct nTorEncryptResponse {
+    pub encrypted: Vec<u8>
+}
+
+impl ResponseBodyTrait for nTorEncryptResponse {}

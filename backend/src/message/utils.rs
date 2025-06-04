@@ -45,3 +45,11 @@ pub fn verify_jwt_token(token: &str) -> Result<TokenData<Claims>, JwtError> {
 pub fn new_nTor_session_id() -> String {
     Uuid::new_v4().to_string()
 }
+
+pub fn vec_to_json(vec: Vec<u8>) -> String {
+    serde_json::to_string(&vec).unwrap()
+}
+
+pub fn json_to_vec(json: &str) -> Vec<u8> {
+    serde_json::from_str(json).unwrap()
+}

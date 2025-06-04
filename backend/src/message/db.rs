@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::{path::PathBuf};
-use crate::message::ntor;
+use crate::message::ntor::server::{Server as nTorServer};
 use crate::message::types::other::{Image, Poem, UserMetadata};
 
 pub struct WGPDatabase {
@@ -9,7 +9,7 @@ pub struct WGPDatabase {
     user_metadata: HashMap<String, UserMetadata>,
     poems: Box<[Poem]>,
     images: Box<[Image]>,
-    pub ntor: HashMap<String, ntor::server::Server>
+    ntor_sessions: HashMap<String, nTorServer>
 }
 
 impl WGPDatabase {
@@ -103,7 +103,7 @@ impl WGPDatabase {
                 },
             ]),
 
-            ntor: HashMap::new()
+            ntor_sessions: HashMap::new()
         }
     }
 
@@ -160,5 +160,12 @@ impl WGPDatabase {
 
     pub fn get_images(&self) -> &Box<[Image]> {
         &self.images
+    }
+
+    pub fn save_ntor_session(&mut self, session_id: &str, server: nTorServer) -> Option<nTorServer> {
+        self.ntor_sessions.insert(session_id.to_string(), server)
+    }
+    pub fn get_ntor_session(&self, session_id: &str) -> Option<&nTorServer> {
+        self.ntor_sessions.get(session_id)
     }
 }
