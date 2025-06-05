@@ -71,6 +71,8 @@ pub struct NTorInitResponse {
     pub public_key: Vec<u8>,
     pub t_hash: Vec<u8>,
     pub session_id: String,
+    pub static_public_key: Vec<u8>, // fixme this field can be removed
+    pub server_id: String
 }
 
 impl ResponseBodyTrait for NTorInitResponse {}

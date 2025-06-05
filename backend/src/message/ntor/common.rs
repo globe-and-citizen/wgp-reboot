@@ -1,4 +1,4 @@
-use log::error;
+use log::{debug, error};
 use rand_core::OsRng;
 use ring::aead;
 use ring::rand::{SecureRandom, SystemRandom};
@@ -80,7 +80,7 @@ pub(crate) fn decrypt(nonce_bytes: [u8; 12], key_bytes: Vec<u8>, mut data: Vec<u
 
     let decrypted_data = opening_key.open_in_place(nonce, aead::Aad::empty(), &mut data).unwrap();
 
-    // println!("Decrypted: {:?}", String::from_utf8_lossy(decrypted_data));
+    debug!("Decrypted: {:?}", String::from_utf8_lossy(decrypted_data));
     Ok(decrypted_data.to_vec())
 }
 

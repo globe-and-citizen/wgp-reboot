@@ -229,7 +229,6 @@ impl WGPMessageHandler {
             poems: Box::from(db.get_poems())
         };
 
-        ctx.set_response_body(response_body.to_bytes());
         Response::new(StatusCode::OK, Some(response_body.to_bytes()))
     }
 
@@ -307,6 +306,8 @@ impl WGPMessageHandler {
             public_key: Vec::from(init_session_response.server_ephemeral_public_key.to_bytes()),
             t_hash: init_session_response.t_hash,
             session_id: ntor_session_id.clone(),
+            static_public_key: ntor_server.get_certificate().public_key.to_bytes().to_vec(),
+            server_id: self.config.ntor_server_id.clone()
         };
 
         // save nTor session
