@@ -131,7 +131,7 @@ impl Server {
 
     pub fn encrypt(&self, data: Vec<u8>) -> Result<([u8; 12], Vec<u8>), &'static str> {
         if let Some(key) = self.shared_secret.clone() {
-            let mut encrypt_key = key.clone(); // use key derivation
+            let mut encrypt_key = key.clone(); // fixme use key derivation
             encrypt_key.extend(key.clone());
             println!("Shared key: {}", hex::encode(key.clone()));
             return common::encrypt(encrypt_key, data)
@@ -141,7 +141,7 @@ impl Server {
 
     pub fn decrypt(&self, nonce: [u8; 12], data: Vec<u8>) -> Result<Vec<u8>, &'static str> {
         if let Some(key) = self.shared_secret.clone() {
-            let mut decrypt_key = key.clone();
+            let mut decrypt_key = key.clone(); // fixme use key derivation
             decrypt_key.extend(key.clone());
             return common::decrypt(nonce, decrypt_key, data);
         }
