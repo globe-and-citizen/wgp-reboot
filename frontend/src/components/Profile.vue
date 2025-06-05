@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {onMounted, ref} from 'vue';
-import {wasmBackend, getToken} from '@/utils.js'; // Make sure this path is correct
+import {getToken, NTorInitApi, GetProfileApi} from '@/utils.js';
+import * as interceptor_wasm from "interceptor-wasm"; // Make sure this path is correct
 
 const profile = ref({
   name: "",
@@ -11,26 +12,57 @@ const profile = ref({
   location: "",
   website: ""
 });
+let client: interceptor_wasm.Client;
+let requestOptions = new interceptor_wasm.HttpRequestOptions()
 
 onMounted(() => {
-  let token = getToken('jwt') || "";
+    client = new interceptor_wasm.Client()
+    let init_session_msg = client.initialise_session();
+    let init_session_response: interceptor_wasm.InitSessionResponse
 
-  wasmBackend.get_profile(token)
-      .then(data => {
+    interceptor_wasm.http_post(NTorInitApi, {
+        public_key: Array.from(init_session_msg.public_key())
+    }).then(response => {
+        let token = getToken('jwt') || "";
+        requestOptions.headers = new Map<string, string>([
+            ["Content-Type", "application/json"],
+            ["nTor_session_id", response.get("session_id")],
+            ["Authorization", token]
+        ]);
+
+        init_session_response = new interceptor_wasm.InitSessionResponse(new Uint8Array(response.get("public_key")), new Uint8Array(response.get("t_hash")))
+        let nTorCertificate = new interceptor_wasm.Certificate(new Uint8Array(response.get("static_public_key")), response.get("server_id"))
+
+        let flag = client.handle_response_from_server(nTorCertificate, init_session_response)
+        console.log("nTor flag:", flag)
+
+        // clone request headers value, so requestOptions's value will not be flushed after passing it to the http request
+        let options = new interceptor_wasm.HttpRequestOptions()
+        options.headers = new Map(requestOptions.headers);
+        return interceptor_wasm.http_get(GetProfileApi, options)
+    }).then(response => {
+        let decrypt_res = client.decrypt(
+            new Uint8Array(response.get("nonce")),
+            new Uint8Array(response.get("encrypted"))
+        )
+        let deciphered = new TextDecoder().decode(decrypt_res);
+        console.log("deciphered:", deciphered)
+
+        let data = JSON.parse(deciphered);
         const metadata = data.metadata || data["metadata"] || data.get("metadata");
         profile.value = {
-          name: metadata.username || metadata['username'] || metadata.get('username') || "",
-          title: metadata.title || metadata['title'] || metadata.get('title') || "",
-          avatar: metadata.avatar || metadata['avatar'] || metadata.get('avatar') || "",
-          bio: metadata.bio || metadata['bio'] || metadata.get('bio') || "",
-          email: metadata.email || metadata['email'] || metadata.get('email') || "",
-          location: metadata.location || metadata['location'] || metadata.get('location') || "",
-          website: metadata.website || metadata['website'] || metadata.get('website') || ""
+            name: metadata.username || metadata['username'] || metadata.get('username') || "",
+            title: metadata.title || metadata['title'] || metadata.get('title') || "",
+            avatar: metadata.avatar || metadata['avatar'] || metadata.get('avatar') || "",
+            bio: metadata.bio || metadata['bio'] || metadata.get('bio') || "",
+            email: metadata.email || metadata['email'] || metadata.get('email') || "",
+            location: metadata.location || metadata['location'] || metadata.get('location') || "",
+            website: metadata.website || metadata['website'] || metadata.get('website') || ""
         };
-      }).catch(err => {
-    console.error('Error fetching profile:', err);
-  })
-});
+    }).catch(err => {
+        console.error(err)
+    })
+})
 </script>
 
 <template>

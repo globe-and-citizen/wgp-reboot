@@ -1,35 +1,75 @@
 <script setup lang="ts">
 import {onMounted, ref} from 'vue';
-import {wasmBackend, getToken, toImageUrl, toBlob, revokeURL} from '@/utils.js';
+import {
+    getToken,
+    toImageUrl,
+    toBlob,
+    revokeURL,
+    NTorInitApi,
+    GetImagesApi,
+    GetImageApi
+} from '@/utils.js';
 import {save_image, get_image} from "interceptor-wasm"
+import * as interceptor_wasm from "interceptor-wasm";
 
 const images = ref<any[]>([]);
 const selectedImage = ref<any | null>(null); // For modal
 const showModal = ref(false);
+let client: interceptor_wasm.Client;
+let requestOptions = new interceptor_wasm.HttpRequestOptions()
 
 onMounted(() => {
-    let token = getToken('jwt') || "";
+    client = new interceptor_wasm.Client()
+    let init_session_msg = client.initialise_session();
+    let init_session_response: interceptor_wasm.InitSessionResponse
 
-    wasmBackend.get_images(null, token)
-        .then(data => {
-            let list = data.images || data["images"] || data.get("images");
+    interceptor_wasm.http_post(NTorInitApi, {
+        public_key: Array.from(init_session_msg.public_key())
+    }).then(response => {
+        let token = getToken('jwt') || "";
+        requestOptions.headers = new Map<string, string>([
+            ["Content-Type", "application/json"],
+            ["nTor_session_id", response.get("session_id")],
+            ["Authorization", token]
+        ]);
 
-            for (let i = 0; i < list.length; i++) {
-                let bytes = list[i].content || list[i]["content"] || list[i].get("content");
-                let filename = list[i].file_name || list[i]["file_name"] || list[i].get("file_name");
+        init_session_response = new interceptor_wasm.InitSessionResponse(new Uint8Array(response.get("public_key")), new Uint8Array(response.get("t_hash")))
+        let nTorCertificate = new interceptor_wasm.Certificate(new Uint8Array(response.get("static_public_key")), response.get("server_id"))
 
-                let image = {
-                    id: list[i].id || list[i]["id"] || list[i].get("id"),
-                    title: list[i].title || list[i]["title"] || list[i].get("title"),
-                    filename: filename,
-                    src: toImageUrl(filename, bytes),
-                }
-                images.value.push(image);
+        let flag = client.handle_response_from_server(nTorCertificate, init_session_response)
+        console.log("nTor flag:", flag)
+
+        // clone request headers value, so requestOptions's value will not be flushed after passing it to the http request
+        let options = new interceptor_wasm.HttpRequestOptions()
+        options.headers = new Map(requestOptions.headers);
+        return interceptor_wasm.http_get(GetImagesApi, options)
+    }).then(response => {
+        let decrypt_res = client.decrypt(
+            new Uint8Array(response.get("nonce")),
+            new Uint8Array(response.get("encrypted"))
+        )
+        let deciphered = new TextDecoder().decode(decrypt_res);
+        console.log("deciphered:", deciphered)
+
+        let data = JSON.parse(deciphered);
+        let list = data.images || data["images"] || data.get("images");
+
+        for (let i = 0; i < list.length; i++) {
+            let bytes = list[i].content || list[i]["content"] || list[i].get("content");
+            let filename = list[i].file_name || list[i]["file_name"] || list[i].get("file_name");
+
+            let image = {
+                id: list[i].id || list[i]["id"] || list[i].get("id"),
+                title: list[i].title || list[i]["title"] || list[i].get("title"),
+                filename: filename,
+                src: toImageUrl(filename, bytes),
             }
-        }).catch(err => {
-        console.error('Error fetching profile:', err);
+            images.value.push(image);
+        }
+    }).catch(err => {
+        console.error(err)
     })
-});
+})
 
 function openImage(id: string, title: string = "") {
     const token = getToken('jwt') || "";
@@ -42,8 +82,18 @@ function openImage(id: string, title: string = "") {
                 src: URL.createObjectURL(data),
             };
         } else {
-            wasmBackend.get_images(id, token)
-                .then(data => {
+            let options = new interceptor_wasm.HttpRequestOptions()
+            options.headers = new Map(requestOptions.headers);
+            interceptor_wasm.http_get(`${GetImageApi}${id}`, options)
+                .then(response => {
+                    let decrypt_res = client.decrypt(
+                        new Uint8Array(response.get("nonce")),
+                        new Uint8Array(response.get("encrypted"))
+                    )
+                    let deciphered = new TextDecoder().decode(decrypt_res);
+                    console.log("deciphered:", deciphered)
+
+                    let data = JSON.parse(deciphered);
                     let bytes = data.content || data["content"] || data.get("content");
                     let filename = data.file_name || data["file_name"] || data.get("file_name");
                     console.log("image", data)

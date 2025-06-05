@@ -36,7 +36,7 @@ export function toBlob(filename: string, bytes: Uint8Array | number[] | ArrayBuf
         if (!(bytes instanceof Uint8Array)) {
             bytes = new Uint8Array(bytes);
         }
-        return new File([bytes], filename, { type: "image/jpeg" });
+        return new File([bytes], filename, {type: "image/jpeg"});
     }
     return null
 }
@@ -55,14 +55,15 @@ export function revokeURL(url: string) {
 
 
 let backendConfig = new interceptorWasm.WGPBackendConfig();
-backendConfig.base_url = "http://localhost:6191";
-backendConfig.login = "/login";
-backendConfig.register = "/register";
-backendConfig.get_image_path = "/images?id={}";
-backendConfig.get_images_path = "/images";
-backendConfig.get_poem_path = "/poems?id={}";
-backendConfig.get_poems_path = "/poems";
-backendConfig.get_profile_path = "/profile";
+const BackendBaseURL = "http://localhost:6191";
+export const NTorInitApi = `${BackendBaseURL}/ntor_init`;
+export const LoginApi = `${BackendBaseURL}/login`;
+export const RegisterApi = `${BackendBaseURL}/register`;
+export const GetImageApi = `${BackendBaseURL}/images?id=`;
+export const GetImagesApi = `${BackendBaseURL}/images`;
+export const GetPoemApi = `${BackendBaseURL}/poems?id=`;
+export const GetPoemsApi = `${BackendBaseURL}/poems`;
+export const GetProfileApi = `${BackendBaseURL}/profile`;
 
 export const wasmBackend = new interceptorWasm.WGPBackend(backendConfig);
 
