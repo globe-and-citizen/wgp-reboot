@@ -68,9 +68,9 @@ fn main() {
     let mut router = router::Router::new(msg_handler);
     router.post("/login".to_string(), Box::new([WGPMessageHandler::ntor_decrypt, WGPMessageHandler::handle_login, WGPMessageHandler::ntor_encrypt]));
     router.post("/register".to_string(), Box::new([WGPMessageHandler::ntor_decrypt, WGPMessageHandler::handle_register, WGPMessageHandler::ntor_encrypt]));
-    router.get("/profile".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::ntor_decrypt, WGPMessageHandler::get_profile, WGPMessageHandler::ntor_encrypt]));
-    router.get("/poems?id={}".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::ntor_decrypt, WGPMessageHandler::get_poems, WGPMessageHandler::ntor_encrypt]));
-    router.get("/images?id={}".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::ntor_decrypt, WGPMessageHandler::get_images, WGPMessageHandler::ntor_encrypt]));
+    router.get("/profile".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_profile, WGPMessageHandler::ntor_encrypt]));
+    router.get("/poems?id={}".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_poems, WGPMessageHandler::ntor_encrypt]));
+    router.get("/images?id={}".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_images, WGPMessageHandler::ntor_encrypt]));
     router.post("/ntor_init".to_string(), Box::new([WGPMessageHandler::ntor_init]));
 
     let handler = proxy::handler::ProxyHandler::new(router);
