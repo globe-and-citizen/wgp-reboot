@@ -61,6 +61,10 @@ impl<T> Router<T> {
                 if response.status != StatusCode::OK {
                     return response;
                 }
+
+                if response.body != None {
+                    ctx.set_response_body(response.body.clone().unwrap());
+                }
             }
 
             response

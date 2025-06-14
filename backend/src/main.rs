@@ -16,16 +16,20 @@ use pingora::server::Server;
 use crate::message::handler::WGPMessageHandler;
 
 fn log_init(filepath: &String, level: &LevelFilter) {
-    let file = OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(filepath)
-        .expect("Can't create file!");
+    let mut target = env_logger::Target::Stdout;
 
-    let target = Box::new(file);
+    if filepath != "console" {
+        let file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(filepath)
+            .expect("Can't create file!");
+
+        target = env_logger::Target::Pipe(Box::new(file));
+    }
 
     env_logger::Builder::new()
-        .target(env_logger::Target::Pipe(target))
+        .target(target)
         .filter(None, *level)
         .format(|buf, record| {
             writeln!(
@@ -33,7 +37,15 @@ fn log_init(filepath: &String, level: &LevelFilter) {
                 "[{} {} {}:{}] {}",
                 Local::now().format("%Y-%m-%d %H:%M:%S%.3f"),
                 record.level(),
-                record.file().unwrap_or("unknown"),
+                // record.file().and_then(|f| f.rsplit_once('/').map(|(_, file)| file)).unwrap_or("unknown"),
+                record.file().map(|f| {
+                    let parts: Vec<&str> = f.split('/').collect();
+                    if parts.len() > 6 {
+                        parts[parts.len() - 6..].join("/")
+                    } else {
+                        f.to_string()
+                    }
+                }).unwrap_or("unknown".to_string()),
                 record.line().unwrap_or(0),
                 record.args()
             )
@@ -46,18 +58,20 @@ fn log_init(filepath: &String, level: &LevelFilter) {
 fn main() {
     let config_path = env::var("CONFIG_PATH").unwrap_or_else(|_| "config.toml".to_string());
 
-    let echo_config = config::Config::from_file(&config_path);
-    println!("{:?}", echo_config);
+    let wgp_config = config::Config::from_file(&config_path);
+    wgp_config.validate();
+    println!("{:?}", wgp_config);
 
-    log_init(&echo_config.log.path, &echo_config.log.to_level_filter());
+    log_init(&wgp_config.log.path, &wgp_config.log.to_level_filter());
 
-    let msg_handler = WGPMessageHandler::new();
+    let msg_handler = WGPMessageHandler::new(wgp_config.handler);
     let mut router = router::Router::new(msg_handler);
-    router.post("/login".to_string(), Box::new([WGPMessageHandler::handle_login]));
-    router.post("/register".to_string(), Box::new([WGPMessageHandler::handle_register]));
-    router.get("/profile".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_profile]));
-    router.get("/poems?id={}".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_poems]));
-    router.get("/images?id={}".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_images]));
+    router.post("/login".to_string(), Box::new([WGPMessageHandler::ntor_decrypt, WGPMessageHandler::handle_login, WGPMessageHandler::ntor_encrypt]));
+    router.post("/register".to_string(), Box::new([WGPMessageHandler::ntor_decrypt, WGPMessageHandler::handle_register, WGPMessageHandler::ntor_encrypt]));
+    router.get("/profile".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_profile, WGPMessageHandler::ntor_encrypt]));
+    router.get("/poems?id={}".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_poems, WGPMessageHandler::ntor_encrypt]));
+    router.get("/images?id={}".to_string(), Box::new([WGPMessageHandler::authentication_middleware, WGPMessageHandler::get_images, WGPMessageHandler::ntor_encrypt]));
+    router.post("/ntor_init".to_string(), Box::new([WGPMessageHandler::ntor_init]));
 
     let handler = proxy::handler::ProxyHandler::new(router);
 
@@ -67,10 +81,10 @@ fn main() {
 
     let mut my_proxy = pingora::proxy::http_proxy_service(
         &my_server.configuration,
-        proxy::Proxy::new(echo_config.upstream.host, echo_config.upstream.port, handler),
+        proxy::Proxy::new(wgp_config.upstream.host, wgp_config.upstream.port, handler),
     );
 
-    my_proxy.add_tcp(echo_config.server.address.as_str());
+    my_proxy.add_tcp(wgp_config.server.address.as_str());
     my_server.add_service(my_proxy);
     my_server.run_forever();
 }

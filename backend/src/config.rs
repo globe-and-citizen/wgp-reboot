@@ -7,6 +7,15 @@ pub struct Config {
     pub upstream: UpstreamConfig,
     pub log: LogConfig,
     pub server: ServerConfig,
+    pub handler: HandlerConfig
+}
+
+impl Config {
+    /// panic if unable to validate.
+    /// assuming after this validation, all configs are valid
+    pub fn validate(&self) {
+        // todo
+    }
 }
 
 impl Config {
@@ -45,6 +54,13 @@ impl LogConfig {
 #[derive(Debug, Deserialize)]
 pub(super) struct ServerConfig {
     pub address: String
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct HandlerConfig {
+    pub jwt_secret: String,
+    pub ntor_server_id: String,
+    pub ntor_static_secret: String,
 }
 
 

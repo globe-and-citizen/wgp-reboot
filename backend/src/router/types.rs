@@ -15,7 +15,10 @@ pub trait ContextTrait {
     fn param(&self, key: &str) -> Option<&String>;
     fn params(&self) -> &HashMap<String, String>;
     fn request_header(&self) -> &RequestHeader;
-    fn request_body(&self) -> &Vec<u8>;
+    fn set_request_body(&mut self, body: Vec<u8>);
+    fn get_request_body(&self) -> &Vec<u8>;
+    fn set_response_body(&mut self, body: Vec<u8>);
+    fn get_response_body(&self) -> &Vec<u8>;
     fn session(&self) -> &Session;
 
     /// get and set simple key-value pairs to use throughout the request handling
@@ -44,17 +47,18 @@ pub struct Context<'a> {
     request_summary: RequestSummary,
     request_header: &'a RequestHeader,
     request_body: Vec<u8>,
+    response_body: Vec<u8>,
     session: &'a Session,
     memory: HashMap<String, String>, // for storing key-value pairs
 }
 
 impl<'a> Context<'a> {
     pub(crate) fn new(request_summary: RequestSummary, body: Vec<u8>, session: &'a Session) -> Self {
-
         Context {
             request_summary,
             request_header: session.req_header(),
             request_body: body,
+            response_body: vec![],
             session,
             memory: HashMap::new(), // Initialize an empty HashMap for memory
         }
@@ -82,8 +86,20 @@ impl<'a> ContextTrait for Context<'a> {
         self.request_header
     }
 
-    fn request_body(&self) -> &Vec<u8> {
+    fn set_request_body(&mut self, data: Vec<u8>) {
+        self.request_body = data
+    }
+
+    fn get_request_body(&self) -> &Vec<u8> {
         &self.request_body
+    }
+
+    fn set_response_body(&mut self, body: Vec<u8>) {
+        self.response_body = body
+    }
+
+    fn get_response_body(&self) -> &Vec<u8> {
+        &self.response_body
     }
 
     fn session(&self) -> &Session {
